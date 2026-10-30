@@ -149,7 +149,35 @@ class SelectionObserver {
   var frame: ((Snapshot) -> Snapshot)? = null
 
   val latest: Snapshot?
-    get() = announced?.let(::withLiveSource)?.let { snapshot -> frame?.invoke(snapshot) ?: snapshot }
+    get() {
+      val arrived = announced ?: return null
+      standIn?.let { (forAnnounced, snapshot) -> if (forAnnounced === arrived) return withLiveSource(snapshot) }
+      return withLiveSource(arrived).let { snapshot -> frame?.invoke(snapshot) ?: snapshot }
+    }
+
+  /**
+   * A snapshot the driver built to stand in for [announced], already in its reader's frame, and the
+   * announcement it stands in for. See `SelectionDriver.activeEdge`: after a swap the edge to move is
+   * the old anchor, which nothing announces. Keyed on the announcement's identity, so the next one
+   * drops it by itself, exactly as [liveSource] is.
+   */
+  @Volatile
+  private var standIn: Pair<Snapshot, Snapshot>? = null
+
+  /**
+   * Reads [snapshot] as [latest] until the next announcement. [announced] is left as it is, because an
+   * unchanged reference is what says nothing has been announced since. False when nothing has been
+   * announced, so there is nothing to stand in for.
+   */
+  fun standIn(snapshot: Snapshot): Boolean {
+    val arrived = announced ?: return false
+    standIn = arrived to snapshot
+    return true
+  }
+
+  fun dropStandIn() {
+    standIn = null
+  }
 
   /**
    * A live node standing in for the last announcement's source after that source stopped answering

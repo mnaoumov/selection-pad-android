@@ -114,6 +114,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
         windows.orEmpty().mapNotNull { window -> window.root?.takeIf { it.packageName?.toString() == packageName } }
       },
     )
+    driver.onActiveEdgeReset = { pad?.showStatus("new selection — moving the end") }
     // And for a page scroll that falls short mid-document, which the rig's Chrome never does by itself.
     driver.forceShortScroll = debuggable && java.io.File(filesDir, FORCE_SHORT_SCROLL).exists()
     if (driver.forceShortScroll) Diag.log("debug: every page scroll swipes a quarter of its distance")

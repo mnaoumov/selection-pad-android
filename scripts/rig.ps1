@@ -100,6 +100,11 @@ $RigSerial = if ($Serial) { $Serial } else { "emulator-$RigConsolePort" }
 
 $AppId = 'dev.mnaoumov.selectionpad'
 $ServiceComponent = "$AppId/$AppId.AscAccessibilityService"
+# The same component in its short form. The platform writes that one itself: uninstalling another
+# package rewrote the rig's list as `dev.mnaoumov.selectionpad/.AscAccessibilityService` (2026-10-30),
+# and a rebind that removed only the long form left the service bound under the short one.
+$ServiceComponentShort = "$AppId/.AscAccessibilityService"
+$ServiceComponents = @($ServiceComponent, $ServiceComponentShort)
 # The service's label, which is how `dumpsys accessibility` names a bound service.
 $ServiceLabel = 'Selection Pad'
 $TargetActivity = "$AppId/.TargetActivity"
@@ -737,7 +742,7 @@ function Restore-ServiceBinding {
     # rig enables only this service, so it never showed; the phone, with a password manager beside
     # it, failed every rebind that way (2026-10-14).
     $enabled = Get-EnabledServices
-    $others = [string[]]@($enabled | Where-Object -FilterScript { $_ -ne $ServiceComponent })
+    $others = [string[]]@($enabled | Where-Object -FilterScript { $_ -notin $ServiceComponents })
     Set-EnabledServices $others
     if (-not (Wait-ServiceBound -Bound $false -TimeoutSeconds 10)) {
         # Either the dump has no readable "Bound services" line here, or the unbind is slow. A gap
@@ -753,7 +758,7 @@ function Restore-ServiceBinding {
         # Read the list AFTER the bind wait: a drop made by the system lands after the write, so a
         # readback in the same breath as the write would still show the service.
         $now = Get-EnabledServices
-        if ($now -contains $ServiceComponent) {
+        if (@($now | Where-Object -FilterScript { $_ -in $ServiceComponents }).Count -gt 0) {
             if ($null -eq $bound -or $bound) {
                 Write-Host -Object 'Service rebound; the pad appears as soon as it connects.'
             } else {
@@ -995,7 +1000,7 @@ function Show-Status {
     if (-not (Test-RigAttached)) { return }
 
     $enabled = Get-EnabledServices
-    Write-Host -Object "Service       : $(if ($enabled -contains $ServiceComponent) { 'enabled' } else { 'OFF' })"
+    Write-Host -Object "Service       : $(if (@($enabled | Where-Object -FilterScript { $_ -in $ServiceComponents }).Count -gt 0) { 'enabled' } else { 'OFF' })"
     Write-Host -Object "Installed     : $(if ("$(Invoke-Adb -AllowFailure -Arguments @('shell', 'pm', 'list', 'packages', $AppId))".Trim()) { 'yes' } else { 'no' })"
 
     $top = "$(Invoke-Adb -AllowFailure -Arguments @('shell', 'dumpsys', 'activity', 'activities'))" |
