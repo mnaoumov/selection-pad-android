@@ -53,6 +53,24 @@ class PadSettingsTest {
   }
 
   @Test
+  fun theAccessibilityButtonIsOffAndTheTileNotYetOfferedOnAFirstRun() {
+    val settings = reconnect()
+    assertFalse(settings.accessibilityButton)
+    assertFalse(settings.tileOffered)
+  }
+
+  @Test
+  fun theAccessibilityButtonSwitchAndTheTileOfferSurviveARestart() {
+    reconnect().apply {
+      accessibilityButton = true
+      tileOffered = true
+    }
+    val restarted = reconnect()
+    assertTrue(restarted.accessibilityButton)
+    assertTrue(restarted.tileOffered)
+  }
+
+  @Test
   fun anUnknownStoredModeFallsBackToDocked() {
     preferences.edit().putString("mode", "SIDEWAYS").apply()
     assertEquals(PadMode.DOCKED, reconnect().mode)

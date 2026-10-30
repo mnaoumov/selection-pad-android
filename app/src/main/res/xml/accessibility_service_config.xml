@@ -7,13 +7,17 @@
     flagRetrieveInteractiveWindows is needed for the floating-toolbar window, which is what locates
     a selection whose node bounds do not hug its text.
 
+    Deliberately NOT flagRequestAccessibilityButton: the system's accessibility button is off by
+    default, and the service adds the flag through setServiceInfo only while the user's switch on
+    the launcher screen is on (PadSettings.accessibilityButton).
+
     Deliberately NOT isAccessibilityTool: this is the ordinary Play lane, per the policy reading in
     the gesture spike's notes. Claiming the flag would be arguable and risky; the ordinary lane is well trodden.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeViewTextSelectionChanged|typeViewScrolled|typeWindowContentChanged|typeWindowStateChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows|flagRequestAccessibilityButton"
+    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
     android:description="@string/accessibility_service_description"

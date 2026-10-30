@@ -1,6 +1,6 @@
 # Selection Pad — Privacy Policy
 
-*Effective 2026-10-16. Applies to the Android app **Selection Pad** (`dev.mnaoumov.selectionpad`).*
+*Effective 2026-10-30. Applies to the Android app **Selection Pad** (`dev.mnaoumov.selectionpad`).*
 
 ## The short version
 
@@ -34,7 +34,8 @@ Nothing of the above. It keeps the position of the current selection in memory o
 working on it, and no file, database or setting holds any of it.
 
 The one thing it does store is **the pad's own settings**: whether you closed the pad, whether it
-is docked or floating, where you moved it, and whether the other app's selection menu is hidden.
+is docked or floating, where you moved it, whether the other app's selection menu is hidden, whether
+the system's accessibility button shows the pad, and whether the app has offered its Quick Settings tile.
 These sit in the app's private storage on your device, so that they survive Android restarting the
 service, and are removed when you uninstall the app. They say nothing about any text or any other
 app.

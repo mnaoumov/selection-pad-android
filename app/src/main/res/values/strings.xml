@@ -19,6 +19,19 @@
     <string name="pad_shown">The pad is back on screen.</string>
     <string name="pad_not_running">Selection Pad is not running — enable it in Accessibility settings first.</string>
 
+    <string name="tile_on">On</string>
+    <string name="tile_off">Off</string>
+    <string name="tile_service_off">Tap to set up</string>
+    <string name="tile_add">Add the pad to Quick Settings</string>
+    <string name="tile_added">The Selection Pad tile is in Quick Settings.</string>
+    <string name="tile_add_failed">Add it by hand: swipe down twice, tap the pencil, and drag “Selection Pad” into the panel.</string>
+    <string name="tile_switch_on">Quick Settings tile: on</string>
+    <string name="tile_switch_off">Quick Settings tile: off</string>
+    <string name="button_switch_on">Accessibility button: on</string>
+    <string name="button_switch_off">Accessibility button: off</string>
+    <string name="button_needs_service">Saved. It takes effect once Selection Pad is running.</string>
+    <string name="toggles_body">Three ways to show or hide the pad: “Show the pad” above, a tile in the notification panel\'s Quick Settings, and the system\'s floating accessibility button. Tap a switch to change it.</string>
+
     <string name="switched_off_body">Selection Pad was switched off. If you did not do that, your phone did: some phones turn off an accessibility service they consider unusual, without saying so. Turn it back on in Accessibility settings.</string>
     <string name="switched_off_oplus">On this phone the setting that does it is “Block suspicious app activities”. Search for it in Settings and allow Selection Pad there first, or it may be switched off again.</string>
     <string name="switched_off_settings">Open Accessibility settings</string>

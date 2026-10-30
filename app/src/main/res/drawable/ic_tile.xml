@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Quick Settings tile's icon: a text line with a selected span between two handles. SystemUI
+    tints it by the tile's state, so only the alpha channel matters and the fill is plain white.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M2,9h3v2H2zM19,9h3v2h-3zM7,7h10v6H7zM6,13l-2,4h4zM18,13l-2,4h4z" />
+</vector>

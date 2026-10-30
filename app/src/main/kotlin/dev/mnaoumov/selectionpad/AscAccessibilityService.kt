@@ -162,12 +162,25 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     connected = this
 
     /*
-     * The config's flagRequestAccessibilityButton puts up the system's accessibility button (or the
-     * gesture shortcut) for this service, and without a callback its clicks went nowhere. A click
-     * toggles the pad: the one way back to a closed pad that needs no trip to the launcher screen.
+     * A click on the system's accessibility button (or its gesture shortcut) toggles the pad. The
+     * button is OFF by default (owner, 2026-10-30): the static config does not carry
+     * flagRequestAccessibilityButton, and [applyAccessibilityButton] adds it only while the
+     * launcher's switch is on. The callback is registered either way, so turning the switch on
+     * needs no rebind.
      */
+    applyAccessibilityButton(settings.accessibilityButton)
     accessibilityButtonController.registerAccessibilityButtonCallback(accessibilityButtonCallback)
     Diag.log("accessibility button available=${accessibilityButtonController.isAccessibilityButtonAvailable}")
+    PadTileService.refresh(this)
+  }
+
+  /** Adds or removes `FLAG_REQUEST_ACCESSIBILITY_BUTTON` on the live service info. */
+  private fun applyAccessibilityButton(enabled: Boolean) {
+    val info = serviceInfo ?: return
+    val flag = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_ACCESSIBILITY_BUTTON
+    info.flags = if (enabled) info.flags or flag else info.flags and flag.inv()
+    serviceInfo = info
+    Diag.log("accessibility button requested=$enabled")
   }
 
   private val accessibilityButtonCallback = object : AccessibilityButtonController.AccessibilityButtonCallback() {
@@ -188,6 +201,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     settings?.padVisible = false
     mask?.hide()
     pad?.hide()
+    PadTileService.refresh(this)
   }
 
   override fun onUnbind(intent: android.content.Intent?): Boolean {
@@ -198,6 +212,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     mask = null
     pad?.hide()
     pad = null
+    PadTileService.refresh(this)
     return super.onUnbind(intent)
   }
 
@@ -1159,6 +1174,36 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       pad.show()
       // The mask is off while the pad is closed, so a selection already up gets its cover back now.
       service.refreshMask()
+      PadTileService.refresh(service)
+      return true
+    }
+
+    /** Whether the pad is on screen, or null when the service is not running. Read by the tile. */
+    fun padShowing(): Boolean? = connected?.pad?.isShowing
+
+    /**
+     * Shows a closed pad or closes an open one, as the tile and the accessibility button do.
+     * Returns whether the pad now shows, or null when the service is not running.
+     */
+    fun togglePad(): Boolean? {
+      val service = connected ?: return null
+      val pad = service.pad ?: return null
+      return if (pad.isShowing) {
+        service.closePad()
+        false
+      } else {
+        showPad()
+      }
+    }
+
+    /**
+     * Stores the launcher's accessibility-button switch and applies it to a running service.
+     * Returns false when the service is not running, so the setting takes effect at its next connect.
+     */
+    fun setAccessibilityButton(context: android.content.Context, enabled: Boolean): Boolean {
+      PadSettings(context.getSharedPreferences(PadSettings.FILE, MODE_PRIVATE)).accessibilityButton = enabled
+      val service = connected ?: return false
+      service.applyAccessibilityButton(enabled)
       return true
     }
 
