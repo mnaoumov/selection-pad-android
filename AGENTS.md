@@ -897,7 +897,8 @@ the change, Chrome force-stopped before each run:
 page of one-line `<p>Row 0NN has alpha bravo here</p>` rows, 20 px, `padding-top: 300px`, so each row's
 text node has the `<p>`'s block-wide box (`56..1218`). Long-press `has` on row 003 (`8..11`), then `⇄ swap`
 and `⇤ word` ×2 to `0..11`. A long-press on `Row` itself seeds nothing, because a first word looks like a
-drag into the node, and the swap after it then refuses (`EdgeUnknown`). Chrome was force-stopped before
+drag into the node, and the swap after it then refuses (`EdgeUnknown`); since 2026-10-30 a long-press after
+a clearing tap seeds it (*After a swap on a selection spanning nodes*). Chrome was force-stopped before
 runs 2 and 3:
 
 | press, 3 runs of 3 | result |
@@ -1402,8 +1403,8 @@ as the `.`'s first caret.
 The task's single `⇥ word` from `debugging` did not reach 21. On the phone that long-press was announced from
 its own leaf as `0..9`. That reads as a drag into a node not seen before (`not a fresh selection`), so nothing
 was seeded, and the word walk stopped on 10, the next word's start, as it does wherever no end is known. A
-second `⇥ word` went on to 21. The active edge also outlives a fresh selection: a run that did not rebind
-first had its `⇄ swap` move the END instead.
+second `⇥ word` went on to 21. The active edge also outlived a fresh selection then: a run that did not rebind
+first had its `⇄ swap` move the END instead. A fresh selection resets it to the END since 2026-10-30.
 
 **`word →` from the word before a block's trailing `.` lands on the block's last caret, and that is
 not Chrome's next-word-start hold.** Measured 2026-10-05 on the handset, Wikipedia's `Text_editor`: from
@@ -2433,7 +2434,8 @@ so the guard is 183 + 42 dp (147) = 330. Hand scrolls did not hide the omnibox o
 while, even after a pull-to-refresh. After `am force-stop com.android.chrome` and reopening the page, the
 first hand scroll (`input swipe 600 1500 600 1060 600`) hid it, and the band's top read 141. Then long-press
 `interactive` (`4..15`), `⇄ swap`, and the press. The service was rebound before each run, because the active
-edge outlives a fresh selection, so a `⇄ swap` straight after the previous run's swap moves the END instead.
+edge outlived a fresh selection then (no longer, since 2026-10-30), so a `⇄ swap` straight after the previous
+run's swap moved the END instead.
 
 | press | result |
 |---|---|
@@ -3654,11 +3656,37 @@ rig, Chrome 143 force-stopped before each run, long-press `row` on row 002, then
 link's `0..0`, which is re-homed onto the caption, so the press's own report names the caption. The
 announcement from the lead row arrives after the press, and the next press reads `0..22` there.
 
-**After a swap on a selection spanning nodes, the edge to move is in no announced node, so the
-press refuses (`EdgeUnknown`, "nudge its handle once").** The announcement describes the edge that
-last moved. A `page ↑` after `end` + `⇄ swap` located the START at the END row's offset 0,
-`(14, 1469)`, under the pad, and dragged across the page from there. A fresh selection, or the
-user dragging that handle inside one node, lifts the refusal.
+**After a swap on a selection spanning nodes, the edge to move is in no announced node, so the pad
+reads it where the anchor was last placed.** The announcement describes the edge that last moved. A
+`page ↑` after `end` + `⇄ swap` once located the START at the END row's offset 0, `(14, 1469)`, under
+the pad, and dragged across the page from there. So the press used to refuse (`EdgeUnknown`, "nudge
+its handle once"), and that refusal is what the owner met on the phone (2026-10-30) as "after swap,
+the pad loses the selection handle": on a Wikipedia line a link or a citation is a node of its own,
+so one step carries the END out of the long-pressed word's node. The anchor does not move while the
+other edge does, so `SelectionDriver.anchorAt` keeps the snapshot that placed it and its offset there.
+`⇄ swap` then stands that node in for the announcement (`SelectionObserver.standIn`), in Chrome's
+frame for a node without the anchor (`EdgeSwap.plan`: `offset..length` for a START, `0..offset` for
+an END), until the next announcement replaces it. The refusal stays where the anchor is not known: a
+handle dragged by hand into another node, which a long-press on a node's first word also looks like,
+clears the record. Measured 2026-10-30 on the `handset` profile, Chrome 143, a served page of
+one-line rows over `As <a>source code</a> is text, …`, long-press `here` (`24..28`) on row 002:
+
+| presses | before | after |
+|---|---|---|
+| `→ char`, `⇄ swap`, `← char`, `→ char`, `⇄ swap`, `← char`, 3 runs | `28 -> 1` into `As `, then `the START edge is not in the announcing node` on every press | `28 -> 1`, `swap: the START edge is the old anchor at 24`, `24 -> 23 -> 24`, then `swap: the END edge is the old anchor at 1`, `1 -> 28` back out of `As `, 1-2 gestures each |
+| `⇥ word`, `⇄ swap`, `← char`, `⇤ word` | not measured | `28 -> 3` (`As `), then the START `24 -> 23`, `23 -> 18` (the start of `bravo`) |
+| control: `⇄ swap` inside one node (`alpha` on row 002), `← char`, `→ char`, `⇄ swap`, `→ char` | `12 -> 11 -> 12`, `17 -> 18` | the same |
+| control: the debug target's `TextView`, `bravo`, `⇄ swap`, `← char`, `⇄ swap`, `→ char` | as before | `6 -> 5`, `11 -> 12` |
+
+**A new selection moves its END again, and a caret before it makes it a new selection.** The swap
+used to outlive the selection it was made on, so after `⇄ swap` on one word and a long-press on the
+next, `⇄ swap` went back to the END: on the rig, `← char` in a `<textarea>` long-pressed after a swap
+on a page row moved the end, and the swap after it the start. Now a fresh selection puts the pad
+back on the END, and the status line says `new selection — moving the end`. A long-press on a node's
+first word used to read as a handle dragged into that node and seed nothing. Chrome announces the
+caret a clearing tap leaves (`13..13` in the tapped row), and a caret has no handles to drag, so a
+range after a caret is now a fresh selection: `Row` on row 004 seeded `0..3`, and `⇄ swap`, `→ char`,
+`← char` went `0 -> 1 -> 0`.
 
 **Chrome hides its handles while the page scrolls, and a grab before they fade back finds
 nothing.** The eighth page of a `start` sweep grabbed where the handle belonged, announced nothing,

@@ -42,6 +42,9 @@ trap {
 }
 
 $component = 'dev.mnaoumov.selectionpad/dev.mnaoumov.selectionpad.AscAccessibilityService'
+# The platform can rewrite the list with the short form itself (uninstalling another package did,
+# 2026-10-30), and that entry is the same service.
+$components = @($component, 'dev.mnaoumov.selectionpad/.AscAccessibilityService')
 
 <#
   Pick the phone, never an emulator.
@@ -120,10 +123,12 @@ function Set-Enabled([string[]] $services) {
 }
 
 $enabled = Get-Enabled
+$ours = @($enabled | Where-Object { $_ -in $components })
+$others = @($enabled | Where-Object { $_ -notin $components })
 
 switch ($Action) {
   'on' {
-    if ($enabled -contains $component) {
+    if ($ours.Count -gt 0) {
       Write-Host 'Selection Pad is already enabled.'
     }
     else {
@@ -132,18 +137,18 @@ switch ($Action) {
     }
   }
   'off' {
-    if ($enabled -notcontains $component) {
+    if ($ours.Count -eq 0) {
       Write-Host 'Selection Pad is already off.'
     }
     else {
-      Set-Enabled (@($enabled | Where-Object { $_ -ne $component }))
+      Set-Enabled $others
       Write-Host 'Selection Pad disabled.'
     }
   }
   'status' {
-    $state = if ($enabled -contains $component) { 'ON' } else { 'off' }
+    $state = if ($ours.Count -gt 0) { 'ON' } else { 'off' }
     Write-Host "Selection Pad: $state"
     Write-Host 'Other accessibility services left alone:'
-    $enabled | Where-Object { $_ -ne $component } | ForEach-Object { Write-Host "  $_" }
+    $others | ForEach-Object { Write-Host "  $_" }
   }
 }

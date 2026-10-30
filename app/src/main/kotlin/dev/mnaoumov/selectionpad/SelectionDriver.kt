@@ -3,6 +3,7 @@ package dev.mnaoumov.selectionpad
 import android.graphics.PointF
 import android.graphics.Rect
 import android.os.Handler
+import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlin.math.hypot
 
@@ -387,19 +388,64 @@ class SelectionDriver(
   }
 
   /** The edge the pad is moving. The other one is the anchor and stays put. */
-  var activeEdge: Edge = Edge.END
+  var activeEdge: Edge
+    get() = edge
     set(value) {
-      // After a swap the anchor is the edge that was moving, which is in the announcing node only
-      // when the whole selection is. Otherwise nothing says where it is.
-      if (value != field) {
-        val wholeSelectionHere = observer.latest?.let(::nodeKey) == anchorNodeKey && anchorNodeKey != null
-        // The edge that moves now is the old anchor, so the announcing node holds it exactly when it
-        // held the anchor.
-        activeEdgeAnnounced = wholeSelectionHere
-        if (!wholeSelectionHere) anchorNodeKey = null
+      if (value == edge) return
+      // Read under the edge that WAS moving: its frame is the one the last announcement is in.
+      val latest = observer.latest?.takeUnless { it.isEmpty() }
+      val oldAnchor = anchorAt
+      // The edge that was moving is the anchor from now on, wherever it is.
+      anchorAt = latest?.let { AnchorAt(it, it.movingOffset()) }
+      // The edge that moves now is the old anchor, so the announcing node holds it exactly when it
+      // held the anchor.
+      val wholeSelectionHere = latest?.let(::nodeKey) == anchorNodeKey && anchorNodeKey != null
+      edge = value
+      val plan = EdgeSwap.plan(value, wholeSelectionHere, oldAnchor?.offset, oldAnchor?.snapshot?.sourceLength ?: -1)
+      activeEdgeAnnounced = plan == EdgeSwap.Plan.WholeSelectionHere
+      if (plan == EdgeSwap.Plan.WholeSelectionHere) return
+      if (plan !is EdgeSwap.Plan.StandIn || oldAnchor == null || !observer.standIn(standIn(oldAnchor, plan))) {
+        anchorNodeKey = null
+        return
       }
-      field = value
+      Diag.log(
+        "swap: the $value edge is the old anchor at ${oldAnchor.offset} (${describeNode(oldAnchor.snapshot)}), " +
+          "not in the announcing node — reading it there"
+      )
+      activeEdgeAnnounced = true
+      anchorNodeKey = latest?.let(::nodeKey)
     }
+
+  /**
+   * Where the anchor is: the snapshot that last placed it, in the frame of the edge that was moving
+   * then, and its offset in that snapshot's node. Null where the pad does not know.
+   *
+   * The announcing node follows the moving edge, so once that edge has left the anchor's node no
+   * announcement says where the anchor is, and a swap used to refuse every press after it
+   * ([Outcome.EdgeUnknown]). Measured 2026-10-30 on the `handset` profile, Chrome 143, a served page
+   * of one-line rows over `As <a>source code</a> is text, …`: long-press `here` (`24..28`), `→ char`
+   * into the next block (`28 -> 1`), `⇄ swap`, then `← char` and `→ char` both logged `the START edge
+   * is not in the announcing node`. On a Wikipedia line, where a link or a citation is a node of its
+   * own, one word step is enough to get there, and that is the owner's "after swap, the pad loses the
+   * selection handle" on the phone (2026-10-30). The anchor does not move while the other edge does,
+   * so the announcement that placed it still says where it is.
+   */
+  private data class AnchorAt(val snapshot: SelectionObserver.Snapshot, val offset: Int)
+
+  private var anchorAt: AnchorAt? = null
+
+  /** [activeEdge]'s value, which a fresh selection resets without the swap's bookkeeping. */
+  private var edge: Edge = Edge.END
+
+  /** Called when a fresh selection puts the pad back on the END, so the pad can say so. */
+  var onActiveEdgeReset: (() -> Unit)? = null
+
+  /**
+   * The old anchor as the edge that moves now, in the frame [inMovingFrame] gives a node without the
+   * anchor, because after the swap the anchor is the edge that was moving, in another node.
+   */
+  private fun standIn(anchor: AnchorAt, plan: EdgeSwap.Plan.StandIn): SelectionObserver.Snapshot =
+    anchor.snapshot.copy(from = plan.from, to = plan.to, atMs = SystemClock.uptimeMillis(), rehomedFrom = null)
 
   /**
    * Whether the last announcement's node holds the edge being moved.
@@ -699,9 +745,12 @@ class SelectionDriver(
    */
   private fun crossTheAnchor() {
     val anchorKey = anchorNodeKey
+    val anchor = anchorAt
     activeEdge = if (activeEdge == Edge.END) Edge.START else Edge.END
+    observer.dropStandIn()
     activeEdgeAnnounced = true
     anchorNodeKey = anchorKey
+    anchorAt = anchor
     Diag.log("  page: the edge crossed the anchor — now moving the $activeEdge")
   }
 
@@ -5188,13 +5237,14 @@ class SelectionDriver(
     activeEdgeAnnounced = true
     syncBoundaryContext(after)
     anchorNodeKey = nodeKey(after)
+    anchorAt = AnchorAt(after, after.anchorOffset())
     lastSeenInNode.clear()
     lastSeenInNode[nodeKey(after)] = after
     return Outcome.AnchorMoved
   }
 
   fun noteSelectionEvent(before: SelectionObserver.Snapshot?) {
-    val now = observer.latest ?: return
+    var now = observer.latest ?: return
     if (now.isEmpty()) return
     if (before != null && !isFreshSelection(before, now, observer.announced ?: now)) {
       lastSeenInNode[nodeKey(now)] = now
@@ -5202,12 +5252,30 @@ class SelectionDriver(
       // edges. So a moving edge nothing had announced since a swap is announced now.
       if (sameNode(before, now)) {
         activeEdgeAnnounced = true
+        anchorAt = AnchorAt(now, now.anchorOffset())
       } else {
+        // A long-press on a node's first word reads the same way, and then the anchor on record is
+        // the last selection's. Aiming at it would touch the page, so a swap refuses instead.
+        anchorAt = null
         Diag.log("a handle dragged into another node at ${now.low()}..${now.high()}: not a fresh selection")
       }
       return
     }
+    if (activeEdge != Edge.END) {
+      /*
+       * A new selection moves its END, as `Shift+→` does after a click on the desktop. The swap used
+       * to outlive the selection it was made on, so after `⇄ swap` on one word and a long-press on the
+       * next, `⇄ swap` went BACK to the END and `← char` moved the end: measured 2026-10-30 on the
+       * `handset` profile, a `<textarea>` long-pressed after a swap on a page row.
+       */
+      // Not through the setter: nothing about this selection's anchor is known until it is seeded below.
+      edge = Edge.END
+      now = observer.latest ?: return
+      Diag.log("a fresh selection: moving the END again")
+      onActiveEdgeReset?.invoke()
+    }
     activeEdgeAnnounced = true
+    anchorAt = AnchorAt(now, now.anchorOffset())
     syncBoundaryContext(now)
     anchorNodeKey = nodeKey(now)
     lastSeenInNode.clear()
@@ -5245,6 +5313,10 @@ class SelectionDriver(
     now: SelectionObserver.Snapshot,
     arrived: SelectionObserver.Snapshot,
   ): Boolean {
+    // A caret has no handles to drag, so a range that follows one was made by a long-press. Chrome
+    // announces the caret a clearing tap leaves (measured 2026-10-30 on the `handset` profile: `13..13`
+    // in the tapped row), and a long-press on a node's first word after it used to read as a drag.
+    if (before.isEmpty()) return true
     val previous = if (sameNode(before, now)) before else lastSeenInNode[nodeKey(now)]
     if (previous == null) return arrived.from != 0
     return now.low() != previous.low() && now.high() != previous.high()
