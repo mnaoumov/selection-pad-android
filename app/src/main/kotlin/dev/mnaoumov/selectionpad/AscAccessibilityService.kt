@@ -1,5 +1,6 @@
 package dev.mnaoumov.selectionpad
 
+import android.accessibilityservice.AccessibilityButtonController
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
@@ -145,12 +146,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       onStopRepeat = ::onStopRepeat,
       onSwapEdge = ::onSwapEdge,
       onToggleMenu = ::onToggleMenu,
-      onClose = {
-        repeating = null
-        settings.padVisible = false
-        mask?.hide()
-        pad?.hide()
-      },
+      onClose = ::closePad,
       settings = settings,
     ).also { it.setMenuMasked(settings.menuMasked) }
 
@@ -164,10 +160,39 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     if (visible) pad?.show()
 
     connected = this
+
+    /*
+     * The config's flagRequestAccessibilityButton puts up the system's accessibility button (or the
+     * gesture shortcut) for this service, and without a callback its clicks went nowhere. A click
+     * toggles the pad: the one way back to a closed pad that needs no trip to the launcher screen.
+     */
+    accessibilityButtonController.registerAccessibilityButtonCallback(accessibilityButtonCallback)
+    Diag.log("accessibility button available=${accessibilityButtonController.isAccessibilityButtonAvailable}")
+  }
+
+  private val accessibilityButtonCallback = object : AccessibilityButtonController.AccessibilityButtonCallback() {
+    override fun onClicked(controller: AccessibilityButtonController) {
+      val pad = pad ?: return
+      Diag.log("accessibility button: ${if (pad.isShowing) "closing" else "showing"} the pad")
+      if (pad.isShowing) closePad() else showPad()
+    }
+
+    override fun onAvailabilityChanged(controller: AccessibilityButtonController, available: Boolean) {
+      Diag.log("accessibility button available=$available")
+    }
+  }
+
+  /** What the pad's own `✕` does: the service stays connected, the overlay goes. */
+  private fun closePad() {
+    repeating = null
+    settings?.padVisible = false
+    mask?.hide()
+    pad?.hide()
   }
 
   override fun onUnbind(intent: android.content.Intent?): Boolean {
     if (connected === this) connected = null
+    accessibilityButtonController.unregisterAccessibilityButtonCallback(accessibilityButtonCallback)
     // An overlay that outlives its service cannot be told to go away.
     mask?.hide()
     mask = null

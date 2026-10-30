@@ -4186,6 +4186,18 @@ pad** on the launcher screen puts it back — a direct call through
 `AscAccessibilityService.showPad`, which works because the activity and the service share one
 process.
 
+**The system's accessibility button toggles the pad.** The config's `flagRequestAccessibilityButton`
+makes Android offer the button (or its gesture) for this service, and until 2026-10-30 nothing
+registered a callback, so on the OnePlus 15 the button was shown and did nothing. The service now
+registers one in `onServiceConnected` and drops it in `onUnbind`: a click shows a closed pad and
+closes an open one, the same as **Show the pad** and `✕`, and logs `accessibility button: showing|closing
+the pad`. Measured on the rig the same day: show, close and show again, `padVisible` following each.
+Writing `accessibility_button_targets` with `settings put` was not enough there. The service read
+`available=false` and no button appeared until the shortcut was switched on in Settings →
+Accessibility → Selection Pad, and then only with three-button navigation
+(`cmd overlay enable com.android.internal.systemui.navbar.threebutton`), whose nav bar shows the
+button at its right end. `cmd accessibility call-system-action 11` did not reach the service either.
+
 **The mask shows only while the pad is showing.** `✕` used to take the mask down once and leave
 masking on, and `refreshMask` runs on every accessibility event. So the next selection put the mask
 back over the toolbar with no pad on screen. On the OnePlus 15 (2026-10-22) that left a blank gray block
