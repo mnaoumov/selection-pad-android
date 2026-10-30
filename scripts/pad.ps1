@@ -41,7 +41,7 @@ trap {
   throw $_
 }
 
-$component = 'dev.mnaoumov.asc/dev.mnaoumov.asc.AscAccessibilityService'
+$component = 'dev.mnaoumov.selectionpad/dev.mnaoumov.selectionpad.AscAccessibilityService'
 
 <#
   Pick the phone, never an emulator.
@@ -74,7 +74,7 @@ $adb = @('-s', (Resolve-Serial))
   PowerShell unwraps a single-element array on return, so `return @($one)` hands back a STRING — and
   then `$enabled + $component` concatenates two component names into one nonsense value instead of
   appending. That is not hypothetical: it wrote
-  "com.x8bit.bitwarden/...AccessibilityServicedev.mnaoumov.asc/...AscAccessibilityService", which the
+  "com.x8bit.bitwarden/...AccessibilityServicedev.mnaoumov.selectionpad/...AscAccessibilityService", which the
   device rejected by emptying the list, disabling the owner's password manager along with this app.
 #>
 function Get-Enabled {

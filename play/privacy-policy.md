@@ -1,6 +1,6 @@
 # Selection Pad — Privacy Policy
 
-*Effective 2026-10-16. Applies to the Android app **Selection Pad** (`dev.mnaoumov.asc`).*
+*Effective 2026-10-16. Applies to the Android app **Selection Pad** (`dev.mnaoumov.selectionpad`).*
 
 ## The short version
 

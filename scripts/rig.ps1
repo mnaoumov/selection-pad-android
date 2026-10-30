@@ -98,7 +98,7 @@ $RigConsolePort = $Shape.Port
 $RigAvdName = $Shape.Avd
 $RigSerial = if ($Serial) { $Serial } else { "emulator-$RigConsolePort" }
 
-$AppId = 'dev.mnaoumov.asc'
+$AppId = 'dev.mnaoumov.selectionpad'
 $ServiceComponent = "$AppId/$AppId.AscAccessibilityService"
 # The service's label, which is how `dumpsys accessibility` names a bound service.
 $ServiceLabel = 'Selection Pad'

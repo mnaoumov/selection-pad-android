@@ -1,4 +1,4 @@
-package dev.mnaoumov.asc
+package dev.mnaoumov.selectionpad
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -80,7 +80,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     super.onServiceConnected()
 
     // The rig is API 37, so only this reproduces a 36.0 device's blind Chrome there. A debuggable
-    // build alone can be given the file: `adb shell run-as dev.mnaoumov.asc touch files/<name>`.
+    // build alone can be given the file: `adb shell run-as dev.mnaoumov.selectionpad touch files/<name>`.
     val debuggable = applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
     observer.forceNoExtendedSelection = debuggable && java.io.File(filesDir, FORCE_NO_EXTENDED_SELECTION).exists()
     if (observer.forceNoExtendedSelection) Diag.log("debug: treating the platform as below 36.1")

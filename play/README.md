@@ -70,7 +70,7 @@ strongest thing the listing says:
 .\gradlew.bat :app:assembleRelease
 & "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.1.0\aapt2.exe" dump permissions `
   app\build\outputs\apk\release\app-release.apk
-# package: dev.mnaoumov.asc      <- and nothing under it
+# package: dev.mnaoumov.selectionpad      <- and nothing under it
 ```
 
 ## The order of a first release
