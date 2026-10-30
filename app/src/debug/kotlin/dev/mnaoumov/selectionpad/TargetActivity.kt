@@ -30,11 +30,9 @@ class TargetActivity : Activity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    SystemBars.beforeContent(this)
 
-    column = LinearLayout(this).apply {
-      orientation = LinearLayout.VERTICAL
-      setPadding(PADDING, PADDING, PADDING, PADDING)
-    }
+    column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
     /*
      * Hardest case FIRST, simplest LAST — which looks backwards and is not.
@@ -49,7 +47,9 @@ class TargetActivity : Activity() {
       selectable(text).also { column.addView(it) }
     }
 
-    setContentView(ScrollView(this).apply { addView(column) })
+    val scroll = ScrollView(this).apply { addView(column) }
+    SystemBars.fit(this, scroll, column, Edges(PADDING, PADDING, PADDING, PADDING))
+    setContentView(scroll)
   }
 
   /**

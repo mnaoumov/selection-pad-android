@@ -28,21 +28,15 @@ class MainActivity : Activity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    SystemBars.beforeContent(this)
 
-    val column = LinearLayout(this).apply {
-      orientation = LinearLayout.VERTICAL
-      // The docked pad covers the bottom of every screen, this one included, so the last buttons
-      // need room to scroll up past it.
-      val clearOfPad = (PAD_CLEARANCE_DP * resources.displayMetrics.density).toInt()
-      setPadding(PADDING, PADDING * 2, PADDING, clearOfPad)
+    column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
+    titleView = TextView(this).apply {
+      text = getString(R.string.disclosure_title)
+      textSize = 22f
     }
-
-    column.addView(
-      TextView(this).apply {
-        text = getString(R.string.disclosure_title)
-        textSize = 22f
-      }
-    )
+    column.addView(titleView)
 
     column.addView(
       TextView(this).apply {
@@ -98,7 +92,38 @@ class MainActivity : Activity() {
     column.addView(switchedOffRow)
     column.addView(batteryRow)
 
-    setContentView(ScrollView(this).apply { addView(column) })
+    scroll = ScrollView(this).apply { addView(column) }
+    // The docked pad covers the bottom of every screen, this one included, so the last buttons
+    // need room to scroll up past it, on top of the gesture bar the pad itself sits above.
+    val clearOfPad = (PAD_CLEARANCE_DP * resources.displayMetrics.density).toInt()
+    SystemBars.fit(this, scroll, column, Edges(PADDING, PADDING * 2, PADDING, clearOfPad))
+    setContentView(scroll)
+  }
+
+  private lateinit var scroll: ScrollView
+  private lateinit var column: LinearLayout
+  private lateinit var titleView: TextView
+
+  /**
+   * Logs whether the first line starts below the status bar and the last view ends above the
+   * gesture bar once scrolled to the end, so the rig can check the disclosure without reading a
+   * screenshot. Rectangles and verdicts only, never the text.
+   */
+  private fun logFit() {
+    val bars = SystemBars.barsOf(scroll)
+    val last = (column.childCount - 1 downTo 0).map { column.getChildAt(it) }
+      .first { it.visibility == View.VISIBLE }
+    // The scroll view fills the window, so its padding is where the viewport sits in the window.
+    val top = scroll.paddingTop + titleView.top - scroll.scrollY
+    val viewport = scroll.height - scroll.paddingTop - scroll.paddingBottom
+    val bottom = SystemBars.bottomAtEnd(last.bottom, column.height, scroll.paddingTop, viewport)
+    val starts = SystemBars.startsClear(top, bars.top)
+    val ends = SystemBars.endsClear(bottom, scroll.height, bars.bottom)
+    Diag.log(
+      "disclosure fit: first line at y $top against a top bar of ${bars.top} (clear=$starts), " +
+        "last view at y $bottom scrolled to the end, in a ${scroll.height} px window with a " +
+        "bottom bar of ${bars.bottom} (clear=$ends)"
+    )
   }
 
   /**
@@ -209,6 +234,7 @@ class MainActivity : Activity() {
     batteryRow.visibility = if (exempt) View.GONE else View.VISIBLE
     val switchedOff = settings.serviceConnectedOnce && !serviceEnabled()
     switchedOffRow.visibility = if (switchedOff) View.VISIBLE else View.GONE
+    column.post { logFit() }
   }
 
   private companion object {
