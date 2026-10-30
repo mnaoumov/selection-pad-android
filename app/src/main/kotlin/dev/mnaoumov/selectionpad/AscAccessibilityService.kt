@@ -157,8 +157,20 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
      * so a pad the user closed has to stay closed here.
      */
     val visible = settings.padVisible
-    Diag.log("service connected (pad was ${if (visible) "visible" else "hidden"}, ${settings.mode})")
-    if (visible) pad?.show()
+    // A restart can come while the phone is locked, and the pad must not appear on the lock screen.
+    locked = deviceLocked()
+    Diag.log("service connected (pad was ${if (visible) "visible" else "hidden"}, ${settings.mode}, locked=$locked)")
+    /*
+     * EXPORTED, because SystemUI sends USER_PRESENT under its own uid, not the system's, and a
+     * NOT_EXPORTED receiver hears only its own app and the system: measured on the rig, the unlock
+     * never arrived. All three actions are protected broadcasts, so no other app can send them.
+     */
+    registerReceiver(lockReceiver, android.content.IntentFilter().apply {
+      addAction(android.content.Intent.ACTION_SCREEN_OFF)
+      addAction(android.content.Intent.ACTION_SCREEN_ON)
+      addAction(android.content.Intent.ACTION_USER_PRESENT)
+    }, RECEIVER_EXPORTED)
+    applyLockGate()
 
     connected = this
 
@@ -186,9 +198,9 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
 
   private val accessibilityButtonCallback = object : AccessibilityButtonController.AccessibilityButtonCallback() {
     override fun onClicked(controller: AccessibilityButtonController) {
-      val pad = pad ?: return
-      Diag.log("accessibility button: ${if (pad.isShowing) "closing" else "showing"} the pad")
-      if (pad.isShowing) closePad() else showPad()
+      val wanted = padWanted() ?: return
+      Diag.log("accessibility button: ${if (wanted) "closing" else "showing"} the pad")
+      if (wanted) closePad() else showPad()
     }
 
     override fun onAvailabilityChanged(controller: AccessibilityButtonController, available: Boolean) {
@@ -205,8 +217,72 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     PadTileService.refresh(this)
   }
 
+  /**
+   * Whether the device is locked right now ([LockGate.locked]). Tracked from the screen broadcasts
+   * below, and read once at connect, because nothing announces the state a service is born into.
+   */
+  private var locked = false
+
+  private fun deviceLocked(): Boolean = LockGate.locked(
+    interactive = getSystemService(android.os.PowerManager::class.java).isInteractive,
+    keyguardLocked = getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked,
+  )
+
+  /**
+   * Hides the pad at screen-off and puts it back at unlock, when the user had it showing.
+   *
+   * Screen-off rather than the keyguard appearing, because it is the one moment that always comes
+   * first: the keyguard is drawn while the screen is still off, so a pad hidden then is never seen on
+   * it. A screen that comes back on with no keyguard (no lock set) sends no `USER_PRESENT` on every
+   * ROM, so `SCREEN_ON` asks the keyguard itself.
+   */
+  private val lockReceiver = object : android.content.BroadcastReceiver() {
+    override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+      locked = when (intent?.action) {
+        android.content.Intent.ACTION_SCREEN_OFF -> true
+        android.content.Intent.ACTION_USER_PRESENT -> false
+        android.content.Intent.ACTION_SCREEN_ON -> deviceLocked()
+        else -> return
+      }
+      Diag.log("lock: ${intent.action?.substringAfterLast('.')} -> locked=$locked")
+      applyLockGate()
+    }
+  }
+
+  /** Shows or hides the pad so it shows exactly when the user wants it and the device is unlocked. */
+  private fun applyLockGate() {
+    val pad = pad ?: return
+    val settings = settings ?: return
+    when (LockGate.action(settings.padVisible, locked, pad.isShowing)) {
+      LockGate.Action.SHOW -> {
+        Diag.log("lock: showing the pad")
+        pad.show()
+        refreshMask()
+      }
+      LockGate.Action.HIDE -> {
+        Diag.log("lock: hiding the pad while the device is locked")
+        repeating = null
+        mask?.hide()
+        maskedBounds = null
+        pad.hide()
+      }
+      LockGate.Action.NONE -> return
+    }
+    PadTileService.refresh(this)
+  }
+
+  /**
+   * Whether the user wants the pad on screen, which is what the tile and the accessibility button
+   * show and toggle. It differs from [Pad.isShowing] only while the device is locked.
+   */
+  private fun padWanted(): Boolean? {
+    val pad = pad ?: return null
+    return if (locked) settings?.padVisible ?: pad.isShowing else pad.isShowing
+  }
+
   override fun onUnbind(intent: android.content.Intent?): Boolean {
     if (connected === this) connected = null
+    runCatching { unregisterReceiver(lockReceiver) }
     accessibilityButtonController.unregisterAccessibilityButtonCallback(accessibilityButtonCallback)
     // An overlay that outlives its service cannot be told to go away.
     mask?.hide()
@@ -1170,26 +1246,29 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     /** Puts the pad back after the user closed it. False when the service is not running. */
     fun showPad(): Boolean {
       val service = connected ?: return false
-      val pad = service.pad ?: return false
+      if (service.pad == null) return false
       service.settings?.padVisible = true
-      pad.show()
-      // The mask is off while the pad is closed, so a selection already up gets its cover back now.
-      service.refreshMask()
+      // While the device is locked this only records the wish; the unlock shows it ([LockGate]).
+      // The mask is off while the pad is closed, so a selection already up gets its cover back there.
+      service.applyLockGate()
       PadTileService.refresh(service)
       return true
     }
 
-    /** Whether the pad is on screen, or null when the service is not running. Read by the tile. */
-    fun padShowing(): Boolean? = connected?.pad?.isShowing
+    /**
+     * Whether the user wants the pad on screen, or null when the service is not running. Read by the
+     * tile, which shows the wish rather than the window, so a lock does not flip it off.
+     */
+    fun padShowing(): Boolean? = connected?.padWanted()
 
     /**
      * Shows a closed pad or closes an open one, as the tile and the accessibility button do.
-     * Returns whether the pad now shows, or null when the service is not running.
+     * Returns whether the pad is now wanted, or null when the service is not running.
      */
     fun togglePad(): Boolean? {
       val service = connected ?: return null
-      val pad = service.pad ?: return null
-      return if (pad.isShowing) {
+      val wanted = service.padWanted() ?: return null
+      return if (wanted) {
         service.closePad()
         false
       } else {

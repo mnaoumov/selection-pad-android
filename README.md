@@ -30,7 +30,8 @@ falls back to reading the node tree.
 
 A floating pad provides the controls: move by character or by word, move either edge, and swap which
 edge is moving. A Quick Settings tile shows or hides the pad from the notification panel, and the
-system's accessibility button can too, once it is switched on in the app.
+system's accessibility button can too, once it is switched on in the app. The pad hides while the
+phone is locked, so it never shows on the lock screen, and comes back after you unlock if it was showing.
 
 ## Repository layout
 

@@ -4248,6 +4248,37 @@ Accessibility → Selection Pad, and then only with three-button navigation
 (`cmd overlay enable com.android.internal.systemui.navbar.threebutton`), whose nav bar shows the
 button at its right end. `cmd accessibility call-system-action 11` did not reach the service either.
 
+**The pad hides while the phone is locked, and comes back at unlock only if the user had it showing
+(owner, 2026-10-30).** An accessibility overlay draws over the keyguard, and on the OnePlus 15 the pad
+sat on the lock screen. That is the kind of thing Play review flags. The service registers for
+`SCREEN_OFF`, `SCREEN_ON` and `USER_PRESENT` (`lockReceiver`), and `LockGate` decides. The device
+counts as locked from screen-off, and while the screen is on with the keyguard up
+(`KeyguardManager.isKeyguardLocked`). It stays locked until `USER_PRESENT`, the swipe that dismisses
+the keyguard, so a keyguard that face unlock has already passed, with the padlock drawn open, still
+hides the pad. A screen that comes on with no keyguard counts as unlocked at `SCREEN_ON`. A lock never
+writes `padVisible`, so a pad the user closed stays closed. A show asked for while locked, from the
+tile, records the wish and waits for the unlock. The tile and the accessibility button show and toggle
+that wish, not the window, so a lock does not flip the tile off. A connect while locked (a ROM restart)
+reads the state once (`deviceLocked`) and shows nothing. **The receiver is `RECEIVER_EXPORTED`, because
+SystemUI sends `USER_PRESENT` under its own uid.** A `RECEIVER_NOT_EXPORTED` receiver hears only its
+own app and the system, and on the rig the unlock never arrived:
+`dumpsys activity broadcasts history` showed the broadcast with `caller=com.android.systemui`. All
+three actions are protected broadcasts, so no other app can send them, and the manifest still asks
+for no permission. Measured 2026-10-30 on the rig with the swipe keyguard on
+(`locksettings set-disabled false`, whose open padlock is the phone's face-unlocked shape; the rig is
+kept at `true`, so set it back):
+
+| case | result |
+|---|---|
+| pad shown: lock, wake, swipe | `hiding the pad while the device is locked` at `SCREEN_OFF`; on the keyguard 0 overlay windows (the screenshot shows the lock screen bare); `USER_PRESENT -> locked=false`, `showing the pad`, 1 overlay |
+| `✕`, then lock, wake, swipe | 0 overlays throughout, no `showing the pad` |
+| pad shown, the process killed while locked | `service connected (pad was visible, DOCKED, locked=true)`, 0 overlays on the keyguard; shown at `USER_PRESENT` |
+| the tile tapped on the keyguard, either way | `tile: showed the pad` and `tile: closed the pad`, 0 overlays either way |
+| keyguard disabled: lock, wake | `SCREEN_ON -> locked=false`, shown at once |
+
+`cmd statusbar click-tile` reaches the tile only while the panel shows the tile's page, and the rig's
+tile is on page 2. Otherwise the click is queued and lands at the next expand.
+
 **The mask shows only while the pad is showing.** `✕` used to take the mask down once and leave
 masking on, and `refreshMask` runs on every accessibility event. So the next selection put the mask
 back over the toolbar with no pad on screen. On the OnePlus 15 (2026-10-22) that left a blank gray block

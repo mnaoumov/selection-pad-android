@@ -21,7 +21,7 @@ With that access, Selection Pad does exactly two things:
 
 It does not read, store or send the text you select, and it has no way to: the app requests no permissions at all, not even internet access. Nothing leaves your phone, because nothing can.
 
-The service does nothing until you turn it on yourself in Accessibility settings, after the app explains what it does and you agree. Turning it off there stops it completely. The pad's close button hides it without turning the service off. A Quick Settings tile in the notification panel shows or hides it with one tap, and so does the app's own screen; the system's accessibility button can do the same if you switch it on.
+The service does nothing until you turn it on yourself in Accessibility settings, after the app explains what it does and you agree. Turning it off there stops it completely. The pad's close button hides it without turning the service off. A Quick Settings tile in the notification panel shows or hides it with one tap, and so does the app's own screen; the system's accessibility button can do the same if you switch it on. The pad hides while the phone is locked and never appears on the lock screen.
 
 WHERE IT WORKS
 
