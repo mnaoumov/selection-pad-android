@@ -39,6 +39,22 @@ class PadSettings(private val preferences: SharedPreferences) {
     get() = preferences.getBoolean(KEY_SERVICE_CONNECTED_ONCE, false)
     set(value) = preferences.edit().putBoolean(KEY_SERVICE_CONNECTED_ONCE, value).apply()
 
+  /**
+   * Whether the system's accessibility button toggles the pad. Off by default (owner, 2026-10-30):
+   * the button is a floating circle over every app, and only someone who wants it should get it.
+   */
+  var accessibilityButton: Boolean
+    get() = preferences.getBoolean(KEY_ACCESSIBILITY_BUTTON, false)
+    set(value) = preferences.edit().putBoolean(KEY_ACCESSIBILITY_BUTTON, value).apply()
+
+  /**
+   * Whether the launcher screen has already offered to add the Quick Settings tile by itself. It
+   * offers once; the button stays for any later time.
+   */
+  var tileOffered: Boolean
+    get() = preferences.getBoolean(KEY_TILE_OFFERED, false)
+    set(value) = preferences.edit().putBoolean(KEY_TILE_OFFERED, value).apply()
+
   /** Docked or floating. An unknown stored name, from some later build, falls back to docked. */
   var mode: PadMode
     get() = PadMode.entries.firstOrNull { it.name == preferences.getString(KEY_MODE, null) } ?: PadMode.DOCKED
@@ -69,6 +85,8 @@ class PadSettings(private val preferences: SharedPreferences) {
     private const val KEY_PAD_VISIBLE = "padVisible"
     private const val KEY_MENU_MASKED = "menuMasked"
     private const val KEY_SERVICE_CONNECTED_ONCE = "serviceConnectedOnce"
+    private const val KEY_ACCESSIBILITY_BUTTON = "accessibilityButton"
+    private const val KEY_TILE_OFFERED = "tileOffered"
     private const val KEY_MODE = "mode"
     private const val KEY_FLOATING_X = "floatingX"
     private const val KEY_FLOATING_Y = "floatingY"

@@ -4186,9 +4186,31 @@ pad** on the launcher screen puts it back — a direct call through
 `AscAccessibilityService.showPad`, which works because the activity and the service share one
 process.
 
-**The system's accessibility button toggles the pad.** The config's `flagRequestAccessibilityButton`
-makes Android offer the button (or its gesture) for this service, and until 2026-10-30 nothing
-registered a callback, so on the OnePlus 15 the button was shown and did nothing. The service now
+**A Quick Settings tile toggles the pad from the notification panel (`PadTileService`).** It is
+active while the pad shows and inactive while it is closed. A tap with the service off opens the
+launcher screen, so the tile is never `STATE_UNAVAILABLE`, because SystemUI delivers no tap on an
+unavailable tile. The tile reads `AscAccessibilityService.padShowing()` when the panel opens, and the
+service calls `TileService.requestListeningState` on connect, unbind, `✕`, **Show the pad** and the
+accessibility button, so a closed panel never shows a stale state. The manifest's
+`BIND_QUICK_SETTINGS_TILE` guards the bind and is not requested, so `aapt2 dump permissions` still
+prints the package line alone. Only the user can put a tile in the panel. So the launcher screen asks
+SystemUI to offer it (`StatusBarManager.requestAddTileService`) by itself once, the first time it
+opens after the service has connected (`PadSettings.tileOffered`), and keeps a button for it after.
+A switch there disables the tile's component, which drops it from the panel. **Disabling or enabling
+that component rebinds the accessibility service** (the package-changed broadcast), so the switch
+costs a reconnect, and the pad's stored state carries over. Measured 2026-10-30 on the rig: the tile
+closed and showed the pad (`tile: closed the pad`, `tile: showed the pad`), read inactive after `✕`
+and active after **Show the pad**. With the service off, a tap opened `MainActivity`. The add request
+answered 1 (already added), then 2 (added) through SystemUI's dialog after `cmd statusbar remove-tile`.
+The switch put `PadTileService` under `disabledComponents` and the tile left the panel. Drive it with
+`adb shell cmd statusbar add-tile|click-tile|remove-tile dev.mnaoumov.selectionpad/.PadTileService`.
+
+**The system's accessibility button toggles the pad, and it is OFF by default (owner, 2026-10-30).**
+The static config no longer carries `flagRequestAccessibilityButton`. The launcher's switch stores
+`PadSettings.accessibilityButton`, and the service adds or removes `FLAG_REQUEST_ACCESSIBILITY_BUTTON`
+on its live `serviceInfo` (logged `accessibility button requested=true|false`), at connect and at once
+when the switch flips. Before that change the config's flag made Android offer the button (or its
+gesture) for this service, and until 2026-10-30 nothing registered a callback, so on the OnePlus 15 the button was shown and did nothing. The service now
 registers one in `onServiceConnected` and drops it in `onUnbind`: a click shows a closed pad and
 closes an open one, the same as **Show the pad** and `✕`, and logs `accessibility button: showing|closing
 the pad`. Measured on the rig the same day: show, close and show again, `padVisible` following each.

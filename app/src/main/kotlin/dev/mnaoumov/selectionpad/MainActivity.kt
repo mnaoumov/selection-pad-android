@@ -89,6 +89,7 @@ class MainActivity : Activity() {
       }
     )
 
+    column.addView(togglesRow)
     column.addView(switchedOffRow)
     column.addView(batteryRow)
 
@@ -173,6 +174,90 @@ class MainActivity : Activity() {
     }
   }
 
+  /**
+   * The other two ways to show or hide the pad (owner, 2026-10-30): the Quick Settings tile, on by
+   * default, and the system's accessibility button, off by default.
+   *
+   * **Only the user can put a tile in the panel**, so "on by default" means the tile's component is
+   * enabled from install and the app asks SystemUI to offer it ([offerTile]). The switch disables
+   * the component, which takes the tile out of the panel.
+   */
+  private val togglesRow: LinearLayout by lazy {
+    LinearLayout(this).apply {
+      orientation = LinearLayout.VERTICAL
+      setPadding(0, PADDING, 0, 0)
+      addView(
+        TextView(this@MainActivity).apply {
+          text = getString(R.string.toggles_body)
+          textSize = 15f
+        }
+      )
+      addView(addTileButton)
+      addView(tileSwitch)
+      addView(buttonSwitch)
+    }
+  }
+
+  private val addTileButton by lazy {
+    Button(this).apply {
+      text = getString(R.string.tile_add)
+      setOnClickListener { offerTile() }
+    }
+  }
+
+  private val tileSwitch by lazy {
+    Button(this).apply {
+      setOnClickListener {
+        PadTileService.setEnabled(this@MainActivity, !PadTileService.isEnabled(this@MainActivity))
+        showToggles()
+      }
+    }
+  }
+
+  private val buttonSwitch by lazy {
+    Button(this).apply {
+      setOnClickListener {
+        val enabled = !settings.accessibilityButton
+        if (!AscAccessibilityService.setAccessibilityButton(this@MainActivity, enabled) && enabled) {
+          Toast.makeText(this@MainActivity, R.string.button_needs_service, Toast.LENGTH_LONG).show()
+        }
+        showToggles()
+      }
+    }
+  }
+
+  private fun showToggles() {
+    val tileEnabled = PadTileService.isEnabled(this)
+    tileSwitch.text = getString(if (tileEnabled) R.string.tile_switch_on else R.string.tile_switch_off)
+    addTileButton.visibility = if (tileEnabled) View.VISIBLE else View.GONE
+    buttonSwitch.text = getString(if (settings.accessibilityButton) R.string.button_switch_on else R.string.button_switch_off)
+  }
+
+  /**
+   * Asks SystemUI to offer the tile (`StatusBarManager.requestAddTileService`, API 33, which is the
+   * app's floor). SystemUI shows its own dialog; an already-added tile answers at once with no
+   * dialog. The result is logged and, when the tile could not be offered, the toast says where to
+   * add it by hand.
+   */
+  private fun offerTile() {
+    val statusBar = getSystemService(android.app.StatusBarManager::class.java)
+    statusBar.requestAddTileService(
+      PadTileService.component(this),
+      getString(R.string.app_name),
+      android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_tile),
+      mainExecutor,
+    ) { result ->
+      Diag.log("tile: add request answered $result")
+      val message = when (result) {
+        android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED,
+        android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> R.string.tile_added
+        android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED -> null
+        else -> R.string.tile_add_failed
+      }
+      if (message != null) Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+  }
+
   private val settings by lazy { PadSettings(getSharedPreferences(PadSettings.FILE, MODE_PRIVATE)) }
 
   /**
@@ -234,6 +319,16 @@ class MainActivity : Activity() {
     batteryRow.visibility = if (exempt) View.GONE else View.VISIBLE
     val switchedOff = settings.serviceConnectedOnce && !serviceEnabled()
     switchedOffRow.visibility = if (switchedOff) View.VISIBLE else View.GONE
+    showToggles()
+    /*
+     * The tile is offered by itself once, and only after the service has run: a tile for a service
+     * that is still off would only open this screen again, and the dialog would cover the
+     * disclosure, which has to be read first.
+     */
+    if (settings.serviceConnectedOnce && !settings.tileOffered && PadTileService.isEnabled(this)) {
+      settings.tileOffered = true
+      offerTile()
+    }
     column.post { logFit() }
   }
 
