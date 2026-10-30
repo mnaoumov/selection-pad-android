@@ -46,11 +46,13 @@ was measured, and how the next one will be.
 ## Building
 
 ```
-./gradlew :app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew phone
 ```
 
-Then enable **Selection Pad** in Settings → Accessibility.
+That builds the debug APK, installs it on the attached phone and turns the pad on. It ignores
+emulators; with more than one phone attached, pick one with `-Pserial=<serial>`. To build only, run
+`./gradlew :app:assembleDebug`, then install by hand and enable **Selection Pad** in Settings →
+Accessibility.
 
 `minSdk` is 33, `targetSdk` 36, application id `dev.mnaoumov.selectionpad`.
 
