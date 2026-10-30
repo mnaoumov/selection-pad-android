@@ -1,6 +1,6 @@
 # Selection Pad
 
-**Selection Pad** (repo `selection-pad`, application id `dev.mnaoumov.selectionpad`) is an Android app giving **cursor and selection control where no keyboard can reach** — text that is
+**Selection Pad** (repo `selection-pad-android`, application id `dev.mnaoumov.selectionpad`) is an Android app giving **cursor and selection control where no keyboard can reach** — text that is
 selectable by touch but *not* editable: a web page in a browser, a read-only view.
 
 Tracked centrally in a private tracker. Six items are closed and hold the history: **the first spike**
@@ -35,9 +35,9 @@ Nothing about this project's plan lives here — this file is build/run mechanic
 
 ## Filing an issue (for AI agents and humans)
 
-Open issues through the [issue forms](https://github.com/mnaoumov/selection-pad/issues/new/choose), not as blank issues.
+Open issues through the [issue forms](https://github.com/mnaoumov/selection-pad-android/issues/new/choose), not as blank issues.
 
-Filing from the CLI or the API (`gh issue create --body`, or an AI agent filing for you) skips the form, and `gh issue create --template` cannot load an issue form. In that case, open the matching form in [`.github/ISSUE_TEMPLATE/`](https://github.com/mnaoumov/selection-pad/tree/HEAD/.github/ISSUE_TEMPLATE), copy every field as a `### <label>` heading in the form's order, and fill in each one. Always state the version you used and your operating system.
+Filing from the CLI or the API (`gh issue create --body`, or an AI agent filing for you) skips the form, and `gh issue create --template` cannot load an issue form. In that case, open the matching form in [`.github/ISSUE_TEMPLATE/`](https://github.com/mnaoumov/selection-pad-android/tree/HEAD/.github/ISSUE_TEMPLATE), copy every field as a `### <label>` heading in the form's order, and fill in each one. Always state the version you used and your operating system.
 
 ## Status
 

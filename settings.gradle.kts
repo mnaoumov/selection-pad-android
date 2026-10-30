@@ -14,7 +14,7 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "selection-pad"
+rootProject.name = "selection-pad-android"
 
 // `spike/` is deliberately NOT included. It is a standalone Gradle build and a throwaway diagnostic
 // harness — the thing that measured every mechanism this app rests on — and none of it is app code.
