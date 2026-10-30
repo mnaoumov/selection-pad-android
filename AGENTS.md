@@ -4127,6 +4127,18 @@ The launcher entry (**Selection Pad**) shows the Play-required disclosure, which
 agree, which opens Accessibility settings, or **No thanks**, which closes the screen and leaves the
 service off (both checked on the rig 2026-09-23). On this device the settings link is informational, since the toggle will not be there.
 
+**Every screen is edge to edge, because the app targets API 36, so each one pads itself clear of the
+bars (`SystemBars`).** On the OnePlus 15 (2026-10-30) the disclosure opened with its title and first
+lines behind the framework action bar. That bar no longer pushes content down, and nothing scrolled the
+lines back out. On the `handset` profile the bar was at y 135..228 and the title at 96..199. Both
+activities now drop the action bar, because the disclosure has its own title. Each one pads its
+`ScrollView` by `systemBars | displayCutout`, and a `ScrollView` clips to its padding, so no line is
+drawn under a bar mid-scroll either. The launcher logs the check on every resume, as
+`disclosure fit: first line at y 180 against a top bar of 84 (clear=true), last view at y 1848
+scrolled to the end, in a 2772 px window with a bottom bar of 84 (clear=true)` on the `handset`
+profile. Read that line rather than a screenshot. The status-bar icons follow the theme's day or night
+mode, because the bar now sits on the window's own background.
+
 The pad appears as soon as the service connects. Its buttons take **real injected input** —
 `adb shell input tap <x> <y>` — which is the right way to test them: the service's own
 `dispatchGesture` is a different input path, and O1 was careful about that distinction.
