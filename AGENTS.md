@@ -1,6 +1,6 @@
-# android-selection-control
+# Selection Pad
 
-Android app giving **cursor and selection control where no keyboard can reach** — text that is
+**Selection Pad** (repo `selection-pad`, application id `dev.mnaoumov.selectionpad`) is an Android app giving **cursor and selection control where no keyboard can reach** — text that is
 selectable by touch but *not* editable: a web page in a browser, a read-only view.
 
 Tracked centrally in a private tracker. Six items are closed and hold the history: **the first spike**
@@ -28,6 +28,8 @@ thing in this file; it is rewritten under *Gotchas*, with the measurement.
 The boundary rework itself was measured on the rig on 2026-09-23: the long-press seed, the retrace and
 both halves of the no-poisoning guard all hold, and the `word ←`-collapses-onto-the-anchor claim that
 sat in this file unmeasured turned out to be false. All of it is under *Gotchas* below.
+
+**The application id was `dev.mnaoumov.asc` until 2026-10-30**, and the repo was `android-selection-control`. Log lines quoted below from before that date carry the old id; every command here uses the new one. Internal names (`AscAccessibilityService`, the `ASC` log tag, the `asc_test` AVD, the `ascUpload*` properties) kept their `asc`, because Play binds none of them.
 
 Nothing about this project's plan lives here — this file is build/run mechanics only.
 
@@ -335,7 +337,7 @@ page node reports `textSelectionStart/End`. A tap that clears the selection is a
 same way, so the message is gated on the toolbar, which a cleared selection takes down.
 
 **The rig reproduces it with a debug marker file.** On a debuggable build,
-`adb shell run-as dev.mnaoumov.asc touch files/force-no-extended-selection`, then `rig.ps1 rebind`, makes
+`adb shell run-as dev.mnaoumov.selectionpad touch files/force-no-extended-selection`, then `rig.ps1 rebind`, makes
 the service treat the platform as below 36.1 (it logs `debug: treating the platform as below 36.1`); `rm`
 it and rebind to undo. Measured 2026-10-05 on the rig with Chromium r1709360: with the marker, a long-press
 on `bravo` logged `selection announced from Chrome's frame root, and below 36.1 nothing carries its range`,
@@ -1354,7 +1356,7 @@ with a file name, is announced as `0..0` and has its own rule in the driver. An 
 whose focus is a text offset in such a node is read the same way. That shape has not been seen.
 
 **The rig's browsers do not announce this way, so a debug marker makes them.** Chrome 143 and Chromium
-r1709360 announced every step on the same served page from the leaves. `adb shell run-as dev.mnaoumov.asc
+r1709360 announced every step on the same served page from the leaves. `adb shell run-as dev.mnaoumov.selectionpad
 touch files/force-container-frame`, then `rig.ps1 rebind`, rewrites a Blink leaf's announcement into the
 frame of its nearest ancestor with no text, on a debuggable build. It logs `debug: announcing <a>..<f> in
 its parent's frame as ...`, and that rewrite is then fed through the re-homing. `[4]`'s own parent
@@ -1479,7 +1481,7 @@ average=2587.0`). That press took the block step onto `0..1` of the `Article` ta
 1.06-1.08 s. On the way, the move onto the row landed in `Talk` and slid to the neighbour's caret. So
 the refusal is the cold first press's, and the press after it works.
 
-**`adb shell run-as dev.mnaoumov.asc touch files/force-refuse-character-rects`, then `rig.ps1 rebind`,
+**`adb shell run-as dev.mnaoumov.selectionpad touch files/force-refuse-character-rects`, then `rig.ps1 rebind`,
 makes every per-character ask refuse** on a debuggable build (it logs `debug: refusing every
 per-character ask`), which is how the rig reproduces that phone case. `rm` it and rebind to undo.
 
@@ -2130,7 +2132,7 @@ all clean. On those, the toolbar over a handle under the pad sat at `(205, 175)-
 near the swipe. Now `judgeAndDrag` swipes once more when the scroll travelled less than the touch slop
 and the scroller still lists the step's direction. The second start keeps a handle's reach from the
 first (`swipeStart`'s `avoid`) and logs `the swipe scrolled 0 of … and the page can still scroll —
-swiping again from (…)`. `adb shell run-as dev.mnaoumov.asc touch files/force-dead-swipe`, then
+swiping again from (…)`. `adb shell run-as dev.mnaoumov.selectionpad touch files/force-dead-swipe`, then
 `rig.ps1 rebind`, leaves every page step's first swipe undispatched on a debuggable build (it logs
 `debug: not dispatching the swipe`). `rm` it and rebind to undo. Measured 2026-10-15 on the rig, Chrome
 143 force-stopped before each run, long-press `charlie`, then `⤓ end`, `← char`, `→ char`:
@@ -2690,7 +2692,7 @@ the move onto the caret. The pad kept 9, the line break. The rig's Chrome 143 an
 scroll there, and on a wrapping copy of the page (`padding-left: 190px` at 30 px) the move was announced
 `8 -> 11`. Now, when the move is not announced as the node's last caret, `ontoTheNodesEnd` moves the held
 pointer onto caret `length - 1` and then back onto `length`. Each move changes the offset, so Chrome
-announces both, whatever it had before. `adb shell run-as dev.mnaoumov.asc touch files/force-silent-node-end`,
+announces both, whatever it had before. `adb shell run-as dev.mnaoumov.selectionpad touch files/force-silent-node-end`,
 then `rig.ps1 rebind`, keeps the first move inside the empty space on a debuggable build, so it is not
 announced, as on the phone. It logs `debug: moving within the empty space`. `rm` it and rebind to undo.
 Measured 2026-10-14 on the rig, Chrome 143 force-stopped before each run, a served page of three
@@ -2761,7 +2763,7 @@ selection. A re-anchor leaves it non-empty in the same node with both edges chan
 selection"), and the pad takes the anchor as it now stands, in this node. It covers the held char grab, the
 wrap's row change and the walk-back, which used to end `HandleLost` there.
 
-`adb shell run-as dev.mnaoumov.asc touch files/force-reanchor`, then `rig.ps1 rebind`, makes a held char
+`adb shell run-as dev.mnaoumov.selectionpad touch files/force-reanchor`, then `rig.ps1 rebind`, makes a held char
 grab's landing read as re-anchored one character behind the moving edge, on a debuggable build (it logs
 `debug: announcing <a>..<b> as re-anchored on <n>`). `rm` it and rebind to undo. Measured 2026-10-14 on the
 rig, Chrome 143 force-stopped before each run, long-press `charlie` in paragraph 1, then `⤓ end` and
@@ -2951,7 +2953,7 @@ three things:
   or `didn't move`. A dropped drag now reports itself not completed, and every grab asks first (below),
   so the press stops at the first unanswered touch-down instead of waiting out its tries.
 
-**`adb shell run-as dev.mnaoumov.asc touch files/force-swallow-edge-zone`, then `rig.ps1 rebind`,
+**`adb shell run-as dev.mnaoumov.selectionpad touch files/force-swallow-edge-zone`, then `rig.ps1 rebind`,
 drops every handle touch-down in a side zone** on a debuggable build, which is how the rig reproduces
 the phone. `rm` it and rebind to undo. With it, on the same page, `char →` from the margin logged
 `debug: swallowed it`, then (before the stop-at-once change below) 13 dropped touch-downs, ended `HandleLost` in 3.1 s, and showed the
@@ -3406,7 +3408,7 @@ listing the step's direction. Where it lists no actions, the shortfall decides a
 ordinary drag that follows is aimed at the band as re-read after the scroll. That way a returning omnibox
 cannot put the held drag above the web contents.
 
-**`adb shell run-as dev.mnaoumov.asc touch files/force-short-scroll`, then `rig.ps1 rebind`, makes
+**`adb shell run-as dev.mnaoumov.selectionpad touch files/force-short-scroll`, then `rig.ps1 rebind`, makes
 every page scroll swipe a quarter of its planned distance** on a debuggable build (it logs
 `debug: every page scroll swipes a quarter of its distance`). That is how the rig reproduces the
 phone's short scroll, since the rig's Chrome never hides its controls. `rm` it and rebind to undo.
@@ -3507,7 +3509,7 @@ visited 80 nodes and found only the `<p>` holding the text (`1 of the same lengt
 454, 699)]`), and the stale node's parent was that `<p>`. So for page text the re-homing is unproven, and
 the next phone occurrence's log says which shape the phone has.
 
-`adb shell run-as dev.mnaoumov.asc touch files/force-stale-source`, then `rig.ps1 rebind`, makes the moving
+`adb shell run-as dev.mnaoumov.selectionpad touch files/force-stale-source`, then `rig.ps1 rebind`, makes the moving
 edge's node refuse `refresh()` once per announcement, on a debuggable build (it logs `debug: treating the
 moving edge's node as one refresh() refuses`). `rm` it and rebind to undo. Measured 2026-10-14 on the rig:
 
@@ -3842,7 +3844,7 @@ and set it back to `0`. To restore the default, run `adb shell settings put glob
 `persist.logd.flowctrl.on=1`, with a quota of 300 rows and 12 KB. On 2026-10-14 a service process that
 had run for about 12 minutes logged nothing for a long-press, a `⇄ swap` and a press, while `log -t ASC`
 from the shell went through and the same process's other tags still showed. `pad.ps1 off`, then
-`am force-stop dev.mnaoumov.asc`, then `pad.ps1 on` gave a fresh process, and that one logged normally.
+`am force-stop dev.mnaoumov.selectionpad`, then `pad.ps1 on` gave a fresh process, and that one logged normally.
 The ring buffer there is 256 KiB, and `logcat -G 16M` raises it.
 
 ### The AVD
@@ -4059,7 +4061,7 @@ Pop-Location
 ```
 
 Both produce `app-debug.apk` from a `:app` module, so **check which directory you are in** before
-installing — the two APKs have different application ids (`dev.mnaoumov.asc` and
+installing — the two APKs have different application ids (`dev.mnaoumov.selectionpad` and
 `dev.mnaoumov.asc.spike`) and can be installed side by side.
 
 **The release bundle** is `:app:bundleRelease`, signed with the Play upload key when four
@@ -4184,7 +4186,7 @@ floating pad's position and the menu mask, in the private preferences file `pad`
 `service connected (pad was visible|hidden, DOCKED|FLOATING)`, so a restart shows in the log. A kill
 still drops the selection state, the boundary set and any run in progress.
 
-Measured 2026-10-16 on the rig, where `adb shell run-as dev.mnaoumov.asc kill -9 <pid>` stands in for
+Measured 2026-10-16 on the rig, where `adb shell run-as dev.mnaoumov.selectionpad kill -9 <pid>` stands in for
 the ROM's kill. The service was restarted within seconds each time:
 
 | state before the kill | after the restart |
@@ -4198,8 +4200,8 @@ pad has to start from it. To reset, delete the file AND kill the process, becaus
 keeps its preferences in memory: a `rebind` after a bare `rm` came back `FLOATING`.
 
 ```powershell
-adb -s emulator-5570 shell run-as dev.mnaoumov.asc rm shared_prefs/pad.xml
-adb -s emulator-5570 shell run-as dev.mnaoumov.asc kill -9 (adb -s emulator-5570 shell pidof dev.mnaoumov.asc)
+adb -s emulator-5570 shell run-as dev.mnaoumov.selectionpad rm shared_prefs/pad.xml
+adb -s emulator-5570 shell run-as dev.mnaoumov.selectionpad kill -9 (adb -s emulator-5570 shell pidof dev.mnaoumov.selectionpad)
 ```
 
 **The phone confirms all three rows (2026-10-17, OnePlus 15, the debug build of `d116b53`).** Each
@@ -4209,11 +4211,11 @@ the pad** gave `pad was visible, DOCKED`. `▣ float`, a drag (`floatingX=240`, 
 `▤ menu` gave `pad was visible, FLOATING`, with the buttons at the dragged position and the toggle
 reading `menu off`.
 
-**`adb shell am kill dev.mnaoumov.asc` does not kill it, so it cannot stand in for the ROM's kill.**
+**`adb shell am kill dev.mnaoumov.selectionpad` does not kill it, so it cannot stand in for the ROM's kill.**
 OplusAthena logs `kill background ... called by android.uid.shell` and the pid stays the same,
 because a bound accessibility service is not a background process. Use `run-as ... kill -9`.
 
-**The phone keeps the kill history across reboots, in `dumpsys activity exit-info dev.mnaoumov.asc`.**
+**The phone keeps the kill history across reboots, in `dumpsys activity exit-info dev.mnaoumov.selectionpad`.**
 The ROM's kills are listed there as `reason=13 (OTHER KILLS BY SYSTEM)` with `description=o-kill(72)`
 (the power-save kill) or `o-kill(322)`. A `run-as kill -9` is listed as `reason=2 (SIGNALED)`.
 logcat's 256 KiB ring holds minutes, so read the exit history, not logcat, to see whether kills
@@ -4228,14 +4230,14 @@ the platform exemption does not cover. The direct `ACTION_REQUEST_IGNORE_BATTERY
 prompt was rejected. It needs the `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission, which would end
 the zero-permission property, and Play allows that permission only for apps whose core function
 fails without it. On the rig, both buttons opened their targets, and the row went away while
-`dumpsys deviceidle whitelist +dev.mnaoumov.asc` was in effect. The screen's bottom padding is 240 dp,
+`dumpsys deviceidle whitelist +dev.mnaoumov.selectionpad` was in effect. The screen's bottom padding is 240 dp,
 so the last buttons scroll up clear of the docked pad, which covered them before.
 
 The phone confirms it (2026-10-17, OnePlus 15). The row showed while the app was not exempt. **Open
 battery optimization settings** opened `com.android.settings/.spa.SpaActivity`, which is "App battery
 usage", the list of all apps. The dontkillmyapp.com button sent a `VIEW` of
-`https://dontkillmyapp.com/...` to Chrome. After `cmd deviceidle whitelist +dev.mnaoumov.asc` and
-`appops set dev.mnaoumov.asc RUN_ANY_IN_BACKGROUND allow`, the row was gone. The phone was left
+`https://dontkillmyapp.com/...` to Chrome. After `cmd deviceidle whitelist +dev.mnaoumov.selectionpad` and
+`appops set dev.mnaoumov.selectionpad RUN_ANY_IN_BACKGROUND allow`, the row was gone. The phone was left
 exempt, so that it could show whether the ROM's kills stop.
 
 **The exemption stops the ROM's kills, the nightly one included, at least for a day.** The exemption

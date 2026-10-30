@@ -40,7 +40,7 @@ if (!uploadKeyConfigured && uploadSettings.values.any { it != null }) {
 }
 
 android {
-  namespace = "dev.mnaoumov.asc"
+  namespace = "dev.mnaoumov.selectionpad"
   // 36.1, not 36: AccessibilityNodeInfo.getSelection is a 36.1 API, and Chrome announces a page
   // selection through it once its extended-selection feature is on (SelectionObserver).
   compileSdk {
@@ -48,7 +48,7 @@ android {
   }
 
   defaultConfig {
-    applicationId = "dev.mnaoumov.asc"
+    applicationId = "dev.mnaoumov.selectionpad"
 
     // TYPE_ACCESSIBILITY_OVERLAY is API 22 and dispatchGesture is API 24; the floor here is set by
     // nothing more exotic than wanting a modern baseline. The pad build briefly raised a spike to 34 for

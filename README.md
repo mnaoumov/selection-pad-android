@@ -1,4 +1,4 @@
-# Android Selection Control
+# Selection Pad
 
 Cursor and selection control for Android text that **no keyboard can reach** — text that is
 selectable by touch but not editable: a web page in a browser, a reading view, a rendered document.
@@ -52,7 +52,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Then enable **Selection Pad** in Settings → Accessibility.
 
-`minSdk` is 33, `targetSdk` 36, application id `dev.mnaoumov.asc`.
+`minSdk` is 33, `targetSdk` 36, application id `dev.mnaoumov.selectionpad`.
 
 A release bundle for Google Play is `./gradlew :app:bundleRelease`; `play/README.md` covers the upload
 key, which lives outside the repository, and everything else the listing needs.

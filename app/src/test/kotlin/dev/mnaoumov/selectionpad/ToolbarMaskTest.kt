@@ -1,4 +1,4 @@
-package dev.mnaoumov.asc
+package dev.mnaoumov.selectionpad
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
