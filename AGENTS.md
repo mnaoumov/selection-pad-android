@@ -4083,9 +4083,20 @@ from their SVGs with a headless Chrome and `.gitignore` keeps out. The launcher 
 ## Run the app
 
 ```powershell
-adb -s <device-serial> install -r app\build\outputs\apk\debug\app-debug.apk
-.\scripts\pad.ps1 on # off | status
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+.\gradlew.bat phone # builds, installs on the phone, turns the pad on
+.\scripts\pad.ps1 off # on | status
 ```
+
+**`.\gradlew phone` is the whole phone loop.** It builds the debug APK, installs it with
+`adb -s <serial> install -r`, and writes the pad's service into the enabled list, taking it off and
+putting it back when it is already there, so a reinstall rebinds. It does NOT use `installDebug`,
+which installs on every attached device, emulators included. The serial is `-Pserial=` or
+`ANDROID_SERIAL` when given, and otherwise the one attached device that is not an emulator. It calls
+the adb on `PATH` before the SDK's: on 2026-10-30 the SDK's 37.0.0 restarted the server that the
+PATH's 37.0.1 had started, and the phone was gone from `adb devices` for minutes after it. Measured
+on the rig the same day with `-Pserial=emulator-5570`: the install and the enable, a second run that
+rebound the service, and the refusal with only an emulator attached. It has not yet run on the phone.
 
 `scripts\pad.ps1` is the by-hand switch. It **edits the enabled-services list in place** rather than
 saving and restoring it, so anything else you rely on (a password manager's autofill service) is
