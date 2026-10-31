@@ -47,6 +47,23 @@ class PadSettings(private val preferences: SharedPreferences) {
     get() = preferences.getBoolean(KEY_TILE_OFFERED, false)
     set(value) = preferences.edit().putBoolean(KEY_TILE_OFFERED, value).apply()
 
+  /**
+   * Whether the user turned on the ongoing notification ([PadNotification]). Off by default (owner,
+   * 2026-10-30), so the app asks for no permission until the user turns it on.
+   */
+  var notificationOn: Boolean
+    get() = preferences.getBoolean(KEY_NOTIFICATION_ON, false)
+    set(value) = preferences.edit().putBoolean(KEY_NOTIFICATION_ON, value).apply()
+
+  /**
+   * Whether the system has refused the notification permission since the user last asked for it.
+   * After a second refusal Android stops showing the prompt, so the switch then opens the app's
+   * notification settings instead.
+   */
+  var notificationDenied: Boolean
+    get() = preferences.getBoolean(KEY_NOTIFICATION_DENIED, false)
+    set(value) = preferences.edit().putBoolean(KEY_NOTIFICATION_DENIED, value).apply()
+
   /** Docked or floating. An unknown stored name, from some later build, falls back to docked. */
   var mode: PadMode
     get() = PadMode.entries.firstOrNull { it.name == preferences.getString(KEY_MODE, null) } ?: PadMode.DOCKED
@@ -88,6 +105,8 @@ class PadSettings(private val preferences: SharedPreferences) {
     private const val KEY_MENU_MASKED = "menuMasked"
     private const val KEY_SERVICE_CONNECTED_ONCE = "serviceConnectedOnce"
     private const val KEY_TILE_OFFERED = "tileOffered"
+    private const val KEY_NOTIFICATION_ON = "notificationOn"
+    private const val KEY_NOTIFICATION_DENIED = "notificationDenied"
     private const val KEY_MODE = "mode"
     private const val KEY_DOCK_EDGE = "dockEdge"
     private const val KEY_MINIMISED = "minimised"

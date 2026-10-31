@@ -196,7 +196,7 @@ tasks.register<PhoneTask>("phone") {
   component.set("dev.mnaoumov.selectionpad/dev.mnaoumov.selectionpad.AscAccessibilityService")
 }
 
-// Test-only: nothing here reaches the APK, so the zero-permission and no-third-party-code
+// Test-only: nothing here reaches the APK, so the permission list and no-third-party-code
 // properties of the shipped app are untouched.
 dependencies {
   testImplementation("junit:junit:4.13.2")

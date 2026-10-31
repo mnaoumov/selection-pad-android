@@ -31,10 +31,12 @@ service config deliberately does not set it (`app/src/main/res/xml/accessibility
 **Data the service accesses, and what happens to it:**
 
 > Only positions: selection offsets, text lengths and on-screen rectangles. The service never reads
-> the text content. None of it is stored, and nothing is transmitted — the app requests no
-> permissions at all, including no INTERNET permission, so it has no network access. The only thing
+> the text content. None of it is stored, and nothing is transmitted — the app has no INTERNET
+> permission, so it has no network access. Its only permission is POST_NOTIFICATIONS, for an optional
+> notification that shows or closes the pad; it is off by default and requested only when the user
+> turns it on in the app. The only thing
 > the app keeps is its own pad settings (whether the pad was closed, docked or floating, where it
-> was moved, whether the selection menu is hidden), in its private on-device preferences, so a
+> was moved, whether the selection menu is hidden, whether the notification is on), in its private on-device preferences, so a
 > restart of the service does not undo them.
 
 **Prominent disclosure:** shown by the launcher activity (`MainActivity`) during normal use, before

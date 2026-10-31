@@ -88,6 +88,24 @@ class PadSettingsTest {
   }
 
   @Test
+  fun theNotificationIsOffOnAFirstRun() {
+    val settings = reconnect()
+    assertFalse(settings.notificationOn)
+    assertFalse(settings.notificationDenied)
+  }
+
+  @Test
+  fun theNotificationSwitchAndARefusalSurviveARestart() {
+    reconnect().apply {
+      notificationOn = true
+      notificationDenied = true
+    }
+    val restarted = reconnect()
+    assertTrue(restarted.notificationOn)
+    assertTrue(restarted.notificationDenied)
+  }
+
+  @Test
   fun anUnknownStoredModeFallsBackToDocked() {
     preferences.edit().putString("mode", "SIDEWAYS").apply()
     assertEquals(PadMode.DOCKED, reconnect().mode)

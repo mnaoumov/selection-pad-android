@@ -41,8 +41,8 @@ enum class PadMode {
  * The floating pad.
  *
  * A `TYPE_ACCESSIBILITY_OVERLAY` window added through `WindowManager.addView` — the window type an
- * accessibility service is entitled to, which needs **no `SYSTEM_ALERT_WINDOW`**, so the app's
- * zero-permission property survives. (`attachAccessibilityOverlayToDisplay` looks like the modern
+ * accessibility service is entitled to, which needs **no `SYSTEM_ALERT_WINDOW`**, so the app still
+ * asks for no window permission. (`attachAccessibilityOverlayToDisplay` looks like the modern
  * answer and is not: it takes a `SurfaceControl`, and `SurfaceControlViewHost.setView` with a null
  * host token is refused outright.)
  */

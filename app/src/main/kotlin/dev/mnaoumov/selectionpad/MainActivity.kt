@@ -134,7 +134,7 @@ class MainActivity : Activity() {
    *
    * **The settings list, not the direct prompt.** `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`
    * would be one tap, but it needs the `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission, which ends
-   * the app's no-permissions property, and Play allows that permission only for apps whose core
+   * a permission the app otherwise does without, and Play allows that permission only for apps whose core
    * function cannot work otherwise. The settings list needs no permission at all. The OEM link is
    * there because OnePlus and others add a second switch of their own ("Allow background activity")
    * that the platform exemption does not cover.
@@ -191,6 +191,8 @@ class MainActivity : Activity() {
       )
       addView(addTileButton)
       addView(tileSwitch)
+      addView(notificationSwitch)
+      addView(notificationHint)
       addView(buttonSwitch)
       addView(buttonHint)
     }
@@ -251,7 +253,86 @@ class MainActivity : Activity() {
     }
   }
 
+  /**
+   * The ongoing notification's switch ([PadNotification]), off by default (owner, 2026-10-30).
+   *
+   * **Turning it on is the only thing that asks for a permission.** Off to on asks for
+   * `POST_NOTIFICATIONS` when the app does not hold it, and turns on only when it is granted. After
+   * a second refusal Android stops showing the prompt and refuses at once, so from then on the
+   * switch opens the app's notification settings instead of asking into silence.
+   */
+  private val notificationSwitch by lazy {
+    Button(this).apply {
+      setOnClickListener {
+        when {
+          settings.notificationOn -> setNotification(false)
+          notificationsAllowed() -> setNotification(true)
+          settings.notificationDenied && !shouldShowRequestPermissionRationale(NOTIFICATIONS) -> {
+            Diag.log("notification: the system no longer asks — opening the app's notification settings")
+            openNotificationSettings()
+          }
+          else -> {
+            Diag.log("notification: asking for the permission")
+            requestPermissions(arrayOf(NOTIFICATIONS), REQUEST_NOTIFICATIONS)
+          }
+        }
+      }
+    }
+  }
+
+  private val notificationHint by lazy {
+    TextView(this).apply {
+      textSize = 15f
+      setPadding(0, PADDING / 2, 0, 0)
+    }
+  }
+
+  /** The permission held and the app's notifications not blocked; on 13+ blocking them revokes it. */
+  private fun notificationsAllowed(): Boolean =
+    checkSelfPermission(NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED &&
+      getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled()
+
+  private fun setNotification(on: Boolean) {
+    settings.notificationOn = on
+    if (on) settings.notificationDenied = false
+    Diag.log("notification: switch ${if (on) "on" else "off"}")
+    PadNotification.refresh(this)
+    showToggles()
+  }
+
+  private fun openNotificationSettings() {
+    startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+  }
+
+  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    if (requestCode != REQUEST_NOTIFICATIONS) return
+    val granted = grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED
+    Diag.log("notification: permission ${if (granted) "granted" else "refused"}")
+    if (granted) {
+      setNotification(true)
+    } else {
+      settings.notificationDenied = true
+      showToggles()
+    }
+  }
+
+  private fun showNotificationSwitch() {
+    val on = settings.notificationOn
+    val allowed = notificationsAllowed()
+    notificationSwitch.text = getString(if (on) R.string.notification_switch_on else R.string.notification_switch_off)
+    val hint = when {
+      on && allowed -> null
+      on -> R.string.notification_hint_blocked
+      settings.notificationDenied && !allowed -> R.string.notification_hint_denied
+      else -> R.string.notification_hint_off
+    }
+    notificationHint.visibility = if (hint == null) View.GONE else View.VISIBLE
+    if (hint != null) notificationHint.text = getString(hint)
+  }
+
   private fun showToggles() {
+    showNotificationSwitch()
     val tileEnabled = PadTileService.isEnabled(this)
     tileSwitch.text = getString(if (tileEnabled) R.string.tile_switch_on else R.string.tile_switch_off)
     addTileButton.visibility = if (tileEnabled) View.VISIBLE else View.GONE
@@ -361,6 +442,8 @@ class MainActivity : Activity() {
     val switchedOff = settings.serviceConnectedOnce && !serviceEnabled()
     switchedOffRow.visibility = if (switchedOff) View.VISIBLE else View.GONE
     showToggles()
+    // Notifications may have been allowed or blocked in Settings since the screen was last shown.
+    PadNotification.refresh(this)
     /*
      * The tile is offered by itself once, and only after the service has run: a tile for a service
      * that is still off would only open this screen again, and the dialog would cover the
@@ -381,5 +464,8 @@ class MainActivity : Activity() {
 
     /** The Settings app's extra naming the preference to highlight; not in the public SDK. */
     const val FRAGMENT_ARG_KEY = ":settings:fragment_args_key"
+
+    const val NOTIFICATIONS = android.Manifest.permission.POST_NOTIFICATIONS
+    const val REQUEST_NOTIFICATIONS = 1
   }
 }

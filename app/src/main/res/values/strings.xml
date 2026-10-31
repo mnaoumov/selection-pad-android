@@ -9,7 +9,7 @@
     <string name="accessibility_service_description">Adds a floating pad of buttons that move the text selection precisely — one word or one character at a time — in apps where text can be selected by touch but not edited, such as a web page in a browser. It works by moving the selection handles the app already shows. It never reads, stores or sends the text: it uses only the position of the selection on screen.</string>
 
     <string name="disclosure_title">Before you turn this on</string>
-    <string name="disclosure_body">Selection Pad uses Android\'s accessibility service so it can move the selection handles in other apps — that is the only way to reach text a keyboard cannot, such as a web page.\n\nWhat it does with that access:\n\n•  Reads where the current selection starts and ends, as positions on screen.\n•  Sends taps and drags to move the selection handles, one per button press.\n\nWhat it never does:\n\n•  It never reads the text itself, only positions and rectangles.\n•  It never stores the text or the selection. It keeps only its own settings, such as whether you closed the pad.\n•  It cannot send anything anywhere — the app requests no permissions at all, including no internet access.\n\nNothing happens until you enable the service yourself, and turning it off in Accessibility settings stops it completely.</string>
+    <string name="disclosure_body">Selection Pad uses Android\'s accessibility service so it can move the selection handles in other apps — that is the only way to reach text a keyboard cannot, such as a web page.\n\nWhat it does with that access:\n\n•  Reads where the current selection starts and ends, as positions on screen.\n•  Sends taps and drags to move the selection handles, one per button press.\n\nWhat it never does:\n\n•  It never reads the text itself, only positions and rectangles.\n•  It never stores the text or the selection. It keeps only its own settings, such as whether you closed the pad.\n•  It cannot send anything anywhere — the app has no internet access. It asks for no permission at all unless you turn on its notification, and that notification never leaves the phone.\n\nNothing happens until you enable the service yourself, and turning it off in Accessibility settings stops it completely.</string>
     <string name="disclosure_agree">I understand — open Accessibility settings</string>
     <string name="disclosure_decline">No thanks</string>
     <string name="disclosure_declined">Selection Pad stays off until you agree.</string>
@@ -33,7 +33,17 @@
     <string name="button_hint_on">Selection Pad has an accessibility shortcut, so the button shows and toggles the pad. To remove it, tap above, then Selection Pad, and turn its shortcut off.</string>
     <string name="button_pick_shortcut">Tap Selection Pad, then its shortcut, and choose the accessibility button.</string>
     <string name="button_remove_shortcut">Tap Selection Pad, then turn its shortcut off.</string>
-    <string name="toggles_body">Three ways to show or hide the pad: “Show the pad” above, a tile in the notification panel\'s Quick Settings, and the system\'s floating accessibility button. Tap a switch to change it.</string>
+    <string name="toggles_body">Four ways to show or hide the pad: “Show the pad” above, a tile in the notification panel\'s Quick Settings, a notification in the notification list, and the system\'s floating accessibility button. Tap a switch to change it.</string>
+
+    <string name="notification_channel">Pad</string>
+    <string name="notification_shown">Pad shown</string>
+    <string name="notification_hidden">Pad hidden</string>
+    <string name="notification_close">Close the pad</string>
+    <string name="notification_switch_on">Notification: on</string>
+    <string name="notification_switch_off">Notification: off</string>
+    <string name="notification_hint_off">Turn it on to show or close the pad from the notification list. Android asks you to allow notifications first; that is the only permission the app ever asks for, and the notification never leaves the phone.</string>
+    <string name="notification_hint_denied">Notifications are not allowed for Selection Pad, so the switch stays off. To allow them, open Settings → Apps → Selection Pad → Notifications. Tapping the switch asks again, or opens that page once Android stops asking.</string>
+    <string name="notification_hint_blocked">The switch is on, but notifications are blocked for Selection Pad. Allow them in Settings → Apps → Selection Pad → Notifications, or tap the switch to turn it off.</string>
 
     <string name="switched_off_body">Selection Pad was switched off. If you did not do that, your phone did: some phones turn off an accessibility service they consider unusual, without saying so. Turn it back on in Accessibility settings.</string>
     <string name="switched_off_oplus">On this phone the setting that does it is “Block suspicious app activities”. Search for it in Settings and allow Selection Pad there first, or it may be switched off again.</string>

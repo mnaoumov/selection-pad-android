@@ -2,17 +2,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-        Deliberately NO permissions at all, from the very first build — not even INTERNET.
+        One permission, POST_NOTIFICATIONS, and nothing else — not even INTERNET.
 
-        The absence is enforced by the kernel (the UID is left out of the `inet` group), not by a
-        promise, and it cannot be acquired later without a new APK the user installs. Holding the
-        property from day one means never having to claw it back.
+        POST_NOTIFICATIONS is for the ongoing notification that shows or closes the pad. It is off
+        by default, and Android asks the user for it only when they turn the notification on in the
+        app, so a user who never does is never asked for anything. A notification never leaves the
+        phone.
 
-        In particular there is no SYSTEM_ALERT_WINDOW: the pad is a TYPE_ACCESSIBILITY_OVERLAY
-        window, which an accessibility service may add without it. Verify on the built APK rather
-        than trusting this file:
-            aapt2 dump permissions app-debug.apk    # package line, nothing under it
+        The absence of INTERNET is enforced by the kernel (the UID is left out of the `inet`
+        group), not by a promise, and it cannot be acquired later without a new APK the user
+        installs. In particular there is no SYSTEM_ALERT_WINDOW: the pad is a
+        TYPE_ACCESSIBILITY_OVERLAY window, which an accessibility service may add without it.
+        Verify on the built APK rather than trusting this file:
+            aapt2 dump permissions app-debug.apk    # the package line and POST_NOTIFICATIONS only
     -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -43,7 +47,7 @@
 
         <!--
             The Quick Settings tile. BIND_QUICK_SETTINGS_TILE is the permission SystemUI must hold
-            to bind it, not one this app requests, so the no-permissions property above holds.
+            to bind it, not one this app requests.
         -->
         <service
             android:name=".PadTileService"
@@ -58,6 +62,11 @@
                 android:name="android.service.quicksettings.TOGGLEABLE_TILE"
                 android:value="true" />
         </service>
+
+        <!-- The ongoing notification's button. Only its own PendingIntent can reach it. -->
+        <receiver
+            android:name=".PadNotificationReceiver"
+            android:exported="false" />
 
     </application>
 

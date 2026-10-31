@@ -63,14 +63,16 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 Raise `versionCode` in `app/build.gradle.kts` before every upload: Play refuses a code it has
 already seen, on any track.
 
-Check the zero-permission property on the release build, not just the debug one — it is the
-strongest thing the listing says:
+Check the permission list on the release build, not just the debug one — the listing's strongest
+claim rests on it: POST_NOTIFICATIONS, asked for only when the user turns the notification on, and
+nothing else (above all no INTERNET):
 
 ```powershell
 .\gradlew.bat :app:assembleRelease
 & "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.1.0\aapt2.exe" dump permissions `
   app\build\outputs\apk\release\app-release.apk
-# package: dev.mnaoumov.selectionpad      <- and nothing under it
+# package: dev.mnaoumov.selectionpad
+# uses-permission: name='android.permission.POST_NOTIFICATIONS'      <- and nothing else
 ```
 
 ## The order of a first release
