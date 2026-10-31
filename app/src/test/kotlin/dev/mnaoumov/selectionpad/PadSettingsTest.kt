@@ -53,6 +53,30 @@ class PadSettingsTest {
   }
 
   @Test
+  fun aFirstRunDocksAtTheBottomExpanded() {
+    val settings = reconnect()
+    assertEquals(DockEdge.BOTTOM, settings.dockEdge)
+    assertFalse(settings.minimised)
+  }
+
+  @Test
+  fun theDockEdgeAndMinimisedSurviveARestart() {
+    reconnect().apply {
+      dockEdge = DockEdge.TOP
+      minimised = true
+    }
+    val restarted = reconnect()
+    assertEquals(DockEdge.TOP, restarted.dockEdge)
+    assertTrue(restarted.minimised)
+  }
+
+  @Test
+  fun anUnknownStoredEdgeFallsBackToTheBottom() {
+    preferences.edit().putString("dockEdge", "LEFT").apply()
+    assertEquals(DockEdge.BOTTOM, reconnect().dockEdge)
+  }
+
+  @Test
   fun theTileIsNotYetOfferedOnAFirstRun() {
     assertFalse(reconnect().tileOffered)
   }

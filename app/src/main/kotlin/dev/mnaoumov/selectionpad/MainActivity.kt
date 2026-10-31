@@ -94,10 +94,7 @@ class MainActivity : Activity() {
     column.addView(batteryRow)
 
     scroll = ScrollView(this).apply { addView(column) }
-    // The docked pad covers the bottom of every screen, this one included, so the last buttons
-    // need room to scroll up past it, on top of the gesture bar the pad itself sits above.
-    val clearOfPad = (PAD_CLEARANCE_DP * resources.displayMetrics.density).toInt()
-    SystemBars.fit(this, scroll, column, Edges(PADDING, PADDING * 2, PADDING, clearOfPad))
+    SystemBars.fit(this, scroll, column, contentEdges())
     setContentView(scroll)
   }
 
@@ -343,8 +340,21 @@ class MainActivity : Activity() {
     return enabled.split(':').any { ComponentName.unflattenFromString(it) == ours }
   }
 
+  /**
+   * The docked pad covers an edge of every screen, this one included, so the first or last lines
+   * need room to scroll past it, on top of the bar the pad itself sits beside. Which edge follows
+   * the pad ([PadPlacement.clearanceDp]).
+   */
+  private fun contentEdges(): Edges {
+    val (top, bottom) = PadPlacement.clearanceDp(settings.mode, settings.dockEdge, settings.minimised, PAD_CLEARANCE_DP)
+    val density = resources.displayMetrics.density
+    return Edges(PADDING, PADDING * 2 + (top * density).toInt(), PADDING, (bottom * density).toInt())
+  }
+
   override fun onResume() {
     super.onResume()
+    // The pad may have moved edge since this screen was built.
+    contentEdges().let { column.setPadding(it.left, it.top, it.right, it.bottom) }
     // Re-read on every return, so the row goes away once the user has granted the exemption.
     val exempt = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
     batteryRow.visibility = if (exempt) View.GONE else View.VISIBLE
