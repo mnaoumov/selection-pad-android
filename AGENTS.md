@@ -4214,6 +4214,33 @@ pad** on the launcher screen puts it back — a direct call through
 `AscAccessibilityService.showPad`, which works because the activity and the service share one
 process.
 
+**The pad can get out of the way without closing (owner, 2026-10-30): flip it to the top, minimise
+it, or float it.** On the phone the docked pad covered the bottom of every screen, and closing it was
+the only way to reach what was under it. The header now carries `⇅` (docked only; its caption says
+where the pad will go, `to top` or `to bottom`) and `–` (`min`), beside `▤` and `✕`. A minimised pad is
+one small button, `▲ pad` at the bottom-right corner, `▼ pad` at the top-right, or `▣ pad` where a
+floating pad was dragged, and a tap grows it back. That button is the whole window, so every touch
+beside it reaches the app: on the `handset` profile the window list read
+`touchableRegion=SkRegion((964,2520,1272,2688))` and nothing else. The edge and the minimised state are
+stored with the rest (`PadSettings.dockEdge`, `minimised`) and survived an `install` and a rebind. The
+geometry is `PadPlacement`, unit-tested. Three things were measured on the `handset` profile on
+2026-10-30:
+
+- **A docked pad at the top is offset by the status bar**, as the bottom one is by the navigation bar.
+  With y 0 its header sat at y 16, under the 84 px bar. With the offset it starts at y 84 and the
+  `▼ pad` handle at (964, 84).
+- **The header buttons are only as wide as their captions, but at least 48 dp.** Four `Button`s at
+  their default 88 dp minimum took 308 px each, so the status line was a 40 px column, its text wrapped
+  a letter a line, and the pad grew to half the screen.
+- **A press works with the pad at the top:** `→ char` from `charlie` went `19 -> 20` in 5 gestures, the
+  `TextView` word-snap cost recorded above. `contentBand` already cuts a pad off whichever edge it is on,
+  and `clearThePadFor` checks wherever the pad is, so nothing in the driver changed.
+
+The launcher screen keeps its 240 dp clearance at the edge the docked pad is on: with the pad at the
+top, `disclosure fit` read `first line at y 1020` (84 + 96 + 840). Auto-dodge, where the pad moves by
+itself when the selection is under it, was considered and not built: it moves the pad from under the
+user's finger unasked. The phone has not run any of this yet.
+
 **A Quick Settings tile toggles the pad from the notification panel (`PadTileService`).** It is
 active while the pad shows and inactive while it is closed. A tap with the service off opens the
 launcher screen, so the tile is never `STATE_UNAVAILABLE`, because SystemUI delivers no tap on an
@@ -4363,7 +4390,7 @@ prompt was rejected. It needs the `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permiss
 the zero-permission property, and Play allows that permission only for apps whose core function
 fails without it. On the rig, both buttons opened their targets, and the row went away while
 `dumpsys deviceidle whitelist +dev.mnaoumov.selectionpad` was in effect. The screen's bottom padding is 240 dp,
-so the last buttons scroll up clear of the docked pad, which covered them before.
+so the last buttons scroll up clear of the docked pad, which covered them before. With the pad docked at the top, the 240 dp go at the top instead.
 
 The phone confirms it (2026-10-17, OnePlus 15). The row showed while the app was not exempt. **Open
 battery optimization settings** opened `com.android.settings/.spa.SpaActivity`, which is "App battery

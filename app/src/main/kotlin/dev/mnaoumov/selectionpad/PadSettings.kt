@@ -10,8 +10,8 @@ import android.content.SharedPreferences
  * times in 21 minutes (`OplusClearSystemService: K [...] o-kill(72) ... with powersavemode`), and each
  * time the accessibility manager restarted the service 1-80 s later. `onServiceConnected` used to
  * show the pad unconditionally, so a pad the user had closed came back "at random". It reads this
- * instead, and so does every other choice the pad offers: the menu mask, docked or floating, and
- * where a floating pad was dragged.
+ * instead, and so does every other choice the pad offers: the menu mask, docked or floating, the
+ * edge a docked pad sits on, whether it is minimised, and where a floating pad was dragged.
  *
  * None of it is the text, the selection or anything about the app being driven. These are the pad's
  * own settings, in the app's private preferences, and they never leave the device.
@@ -52,6 +52,16 @@ class PadSettings(private val preferences: SharedPreferences) {
     get() = PadMode.entries.firstOrNull { it.name == preferences.getString(KEY_MODE, null) } ?: PadMode.DOCKED
     set(value) = preferences.edit().putString(KEY_MODE, value.name).apply()
 
+  /** Which edge a docked pad sits on. An unknown stored name falls back to the bottom. */
+  var dockEdge: DockEdge
+    get() = DockEdge.entries.firstOrNull { it.name == preferences.getString(KEY_DOCK_EDGE, null) } ?: DockEdge.BOTTOM
+    set(value) = preferences.edit().putString(KEY_DOCK_EDGE, value.name).apply()
+
+  /** Whether the pad is shrunk to its small handle. */
+  var minimised: Boolean
+    get() = preferences.getBoolean(KEY_MINIMISED, false)
+    set(value) = preferences.edit().putBoolean(KEY_MINIMISED, value).apply()
+
   /** Where a floating pad was last dragged, in raw screen pixels, or null before the first drag. */
   var floatingPosition: Pair<Int, Int>?
     get() =
@@ -79,6 +89,8 @@ class PadSettings(private val preferences: SharedPreferences) {
     private const val KEY_SERVICE_CONNECTED_ONCE = "serviceConnectedOnce"
     private const val KEY_TILE_OFFERED = "tileOffered"
     private const val KEY_MODE = "mode"
+    private const val KEY_DOCK_EDGE = "dockEdge"
+    private const val KEY_MINIMISED = "minimised"
     private const val KEY_FLOATING_X = "floatingX"
     private const val KEY_FLOATING_Y = "floatingY"
   }

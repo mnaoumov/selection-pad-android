@@ -93,6 +93,12 @@ class Pad(
   var mode: PadMode = settings.mode
     private set
 
+  /** The edge a docked pad sits on ([DockEdge]). */
+  private var dockEdge: DockEdge = settings.dockEdge
+
+  /** Shrunk to a small handle, so everything but the handle is free to touch. */
+  private var minimised: Boolean = settings.minimised
+
   val isShowing: Boolean get() = root != null
 
   fun show() {
@@ -148,14 +154,37 @@ class Pad(
   }
 
   /** Rebuilds in the other mode, because the layout differs as much as the position does. */
-  fun toggleMode() {
-    val previousStatus = statusView?.text?.toString()
+  fun toggleMode() = rebuild {
     mode = if (mode == PadMode.DOCKED) PadMode.FLOATING else PadMode.DOCKED
     settings.mode = mode
+  }
+
+  /** Moves a docked pad to the other edge of the screen, so what was under it can be reached. */
+  private fun flipEdge() = rebuild {
+    dockEdge = if (dockEdge == DockEdge.BOTTOM) DockEdge.TOP else DockEdge.BOTTOM
+    settings.dockEdge = dockEdge
+    Diag.log("pad: docked at the ${dockEdge.name.lowercase()}")
+  }
+
+  /** Shrinks the pad to its handle, or grows it back. */
+  private fun setMinimised(value: Boolean) = rebuild {
+    minimised = value
+    settings.minimised = value
+    Diag.log("pad: ${if (value) "minimised" else "expanded"}")
+  }
+
+  /** Applies [change] and builds the pad again, keeping the status line the user was reading. */
+  private fun rebuild(change: () -> kotlin.Unit) {
+    val previousStatus = statusView?.text?.toString() ?: lastStatus
+    change()
+    val wasShowing = isShowing
     hide()
-    show()
+    if (wasShowing) show()
     previousStatus?.let { showStatus(it) }
   }
+
+  /** The last status shown, so a pad expanded from its handle says what happened meanwhile. */
+  private var lastStatus: String? = null
 
   /**
    * Whether the pad has been asked to let touches through. Its [TouchGate] swallows anything that
@@ -214,15 +243,18 @@ class Pad(
   }
 
   fun showStatus(text: String) {
+    lastStatus = text
     statusView?.text = text
   }
 
   private fun layoutFor(mode: PadMode) = WindowManager.LayoutParams().apply {
+    val placement = PadPlacement.of(mode, dockEdge, minimised)
     when (mode) {
       PadMode.DOCKED -> {
-        width = WindowManager.LayoutParams.MATCH_PARENT
+        width = if (placement.fullWidth) WindowManager.LayoutParams.MATCH_PARENT else WindowManager.LayoutParams.WRAP_CONTENT
         height = WindowManager.LayoutParams.WRAP_CONTENT
-        gravity = Gravity.BOTTOM or Gravity.START
+        val horizontal = if (placement.alignEnd) Gravity.END else Gravity.START
+        gravity = horizontal or if (placement.anchor == PadPlacement.Anchor.TOP) Gravity.TOP else Gravity.BOTTOM
         /*
          * Sit ABOVE the navigation bar, not under it.
          *
@@ -233,7 +265,9 @@ class Pad(
          * `OnApplyWindowInsetsListener`, because this window is never dispatched navigation-bar
          * insets at all — the listener fires with `bottom = 0` and the row stays covered.
          */
-        y = navigationBarHeight()
+        // At the top it is the status bar and any cutout that have to be cleared, for the same
+        // reason: measured on the handset profile, y 0 put the header at y 16, under the 84 px bar.
+        y = if (placement.anchor == PadPlacement.Anchor.TOP) statusBarHeight() else navigationBarHeight()
       }
       PadMode.FLOATING -> {
         width = WindowManager.LayoutParams.WRAP_CONTENT
@@ -253,7 +287,7 @@ class Pad(
       WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
     // A floating pad's x/y are clamped against the screen (clampToScreen), so they have to BE screen
     // pixels; without this flag they are measured inside the content area, a status bar lower.
-    if (mode == PadMode.FLOATING) flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+    if (placement.atFloatingPosition) flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
   }
 
   /**
@@ -280,12 +314,18 @@ class Pad(
     return true
   }
 
+  private fun statusBarHeight(): Int =
+    windowManager.currentWindowMetrics.windowInsets
+      .getInsets(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout())
+      .top
+
   private fun navigationBarHeight(): Int =
     windowManager.currentWindowMetrics.windowInsets
       .getInsets(WindowInsets.Type.navigationBars())
       .bottom
 
   private fun buildView(themed: Context, layoutParams: WindowManager.LayoutParams): View {
+    if (minimised) return buildHandle(themed)
     val column = LinearLayout(themed).apply {
       orientation = LinearLayout.VERTICAL
       setBackgroundColor(BACKGROUND)
@@ -323,8 +363,11 @@ class Pad(
     // The mask toggle lives beside the close button rather than in the direction grid: it is a
     // setting about the view, not a movement, and the grid is already five buttons wide.
     menuButton = button(themed, menuLabel()).apply { setOnClickListener { onToggleMenu() } }
-    header.addView(menuButton, wrapContent())
-    header.addView(action(themed, "✕") { onClose() }, wrapContent())
+    header.addView(compact(menuButton!!), wrapContent())
+    // Beside the close button, because both answer "this pad is in my way", and the grid is full.
+    if (mode == PadMode.DOCKED) header.addView(compact(action(themed, edgeLabel()) { flipEdge() }), wrapContent())
+    header.addView(compact(action(themed, "–\nmin") { setMinimised(true) }), wrapContent())
+    header.addView(compact(action(themed, "✕") { onClose() }), wrapContent())
     column.addView(header)
 
     if (mode == PadMode.DOCKED) {
@@ -370,6 +413,42 @@ class Pad(
       )
     }
     return column
+  }
+
+  /**
+   * A header button only as wide as its caption. A `Button`'s default minimum width is 88 dp, and
+   * four of them filled the whole width of the handset profile (308 px each of 1272), leaving the
+   * status line a 40 px column whose text wrapped a letter a line and made the pad half the screen.
+   */
+  private fun compact(view: View): View = view.apply {
+    // 48 dp, the platform's least touch target, so the ✕ does not shrink to its glyph.
+    val least = (TOUCH_TARGET_DP * resources.displayMetrics.density).toInt()
+    minimumWidth = least
+    if (this is Button) {
+      minWidth = least
+      setPadding(PADDING, paddingTop, PADDING, paddingBottom)
+    }
+  }
+
+  /** Says where the pad will go, like [menuLabel] says what is true: up from the bottom, down from the top. */
+  private fun edgeLabel(): String = if (dockEdge == DockEdge.BOTTOM) "⇅\nto top" else "⇅\nto bottom"
+
+  /**
+   * The minimised pad: one small button that grows the pad back. It is the whole window, so every
+   * touch beside it reaches the app below.
+   */
+  private fun buildHandle(themed: Context): View {
+    val label = when {
+      mode == PadMode.FLOATING -> "▣ pad"
+      dockEdge == DockEdge.TOP -> "▼ pad"
+      else -> "▲ pad"
+    }
+    return button(themed, label).apply {
+      setTextColor(FOREGROUND)
+      setBackgroundColor(BACKGROUND)
+      setPadding(PADDING * 2, PADDING, PADDING * 2, PADDING)
+      setOnClickListener { setMinimised(false) }
+    }
   }
 
   private fun commandButtons(themed: Context, vararg buttons: Pair<PadCommand, String>): List<View> =
@@ -529,6 +608,9 @@ class Pad(
      * through. Two frames alone were 7-18 ms on the rig, and three grabs of four still reached the pad.
      */
     const val PASS_THROUGH_SETTLE_MS = 100L
+
+    /** The least width of a header button ([compact]). */
+    const val TOUCH_TARGET_DP = 48
     const val FLOATING_X = 240
     const val FLOATING_Y = 1900
     const val PADDING = 16
