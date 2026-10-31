@@ -195,7 +195,47 @@ class MainActivity : Activity() {
       addView(addTileButton)
       addView(tileSwitch)
       addView(buttonSwitch)
+      addView(buttonHint)
     }
+  }
+
+  /**
+   * The accessibility button's state, read from the system, and the way to change it. The app has
+   * no switch of its own to offer: the button shows exactly when the user has given the service a
+   * shortcut ([ButtonShortcut]), so this opens the page where that is done, either way.
+   */
+  private val buttonSwitch by lazy {
+    Button(this).apply {
+      setOnClickListener {
+        val message = if (buttonAssigned()) R.string.button_remove_shortcut else R.string.button_pick_shortcut
+        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+        openShortcutSettings()
+      }
+    }
+  }
+
+  private val buttonHint by lazy {
+    TextView(this).apply {
+      textSize = 15f
+      setPadding(0, PADDING / 2, 0, 0)
+    }
+  }
+
+  private fun buttonAssigned(): Boolean {
+    val lists = ButtonShortcut.TARGET_KEYS.map { Settings.Secure.getString(contentResolver, it) }
+    return ButtonShortcut.assigned(ComponentName(this, AscAccessibilityService::class.java), lists)
+  }
+
+  /**
+   * Opens Accessibility settings with Selection Pad's row picked out, so the user can tap it and
+   * set or remove its shortcut. The direct route, `ACCESSIBILITY_DETAILS_SETTINGS`, is guarded by a
+   * permission only the system and the installer hold: on the rig it threw `SecurityException`. The
+   * list keys each service's row by its flattened component, which is what the Settings app's
+   * `:settings:fragment_args_key` extra highlights.
+   */
+  private fun openShortcutSettings() {
+    val ours = ComponentName(this, AscAccessibilityService::class.java).flattenToString()
+    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).putExtra(FRAGMENT_ARG_KEY, ours))
   }
 
   private val addTileButton by lazy {
@@ -214,23 +254,14 @@ class MainActivity : Activity() {
     }
   }
 
-  private val buttonSwitch by lazy {
-    Button(this).apply {
-      setOnClickListener {
-        val enabled = !settings.accessibilityButton
-        if (!AscAccessibilityService.setAccessibilityButton(this@MainActivity, enabled) && enabled) {
-          Toast.makeText(this@MainActivity, R.string.button_needs_service, Toast.LENGTH_LONG).show()
-        }
-        showToggles()
-      }
-    }
-  }
-
   private fun showToggles() {
     val tileEnabled = PadTileService.isEnabled(this)
     tileSwitch.text = getString(if (tileEnabled) R.string.tile_switch_on else R.string.tile_switch_off)
     addTileButton.visibility = if (tileEnabled) View.VISIBLE else View.GONE
-    buttonSwitch.text = getString(if (settings.accessibilityButton) R.string.button_switch_on else R.string.button_switch_off)
+    val assigned = buttonAssigned()
+    buttonSwitch.text = getString(if (assigned) R.string.button_switch_on else R.string.button_switch_off)
+    buttonHint.text = getString(if (assigned) R.string.button_hint_on else R.string.button_hint_off)
+    Diag.log("button: launcher reads the shortcut as ${if (assigned) "assigned" else "not assigned"}")
   }
 
   /**
@@ -337,5 +368,8 @@ class MainActivity : Activity() {
 
     /** More than the docked pad's height: 152 dp on the rig, three rows of buttons and the padding. */
     const val PAD_CLEARANCE_DP = 240
+
+    /** The Settings app's extra naming the preference to highlight; not in the public SDK. */
+    const val FRAGMENT_ARG_KEY = ":settings:fragment_args_key"
   }
 }
