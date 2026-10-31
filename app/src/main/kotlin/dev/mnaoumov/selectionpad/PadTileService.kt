@@ -13,8 +13,8 @@ import android.service.quicksettings.TileService
  * The Quick Settings tile that toggles the pad from the notification panel.
  *
  * **It needs no permission.** The manifest guards the service with `BIND_QUICK_SETTINGS_TILE`, which
- * is the permission SystemUI must hold to bind it, not one this app requests, so the zero-permission
- * property holds (`aapt2 dump permissions` still prints the package line and nothing else).
+ * is the permission SystemUI must hold to bind it, not one this app requests (`aapt2 dump
+ * permissions` does not list it).
  *
  * **Off while the service is off is INACTIVE with a subtitle, not `STATE_UNAVAILABLE`.** SystemUI
  * does not deliver a tap on an unavailable tile at all, and a tap that does nothing is the one thing

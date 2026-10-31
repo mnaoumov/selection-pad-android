@@ -76,8 +76,8 @@ mirrors). It is a **closed loop**: each press reads the current selection, moves
 
 **The pad is an accessibility overlay, NOT an `InputMethodService`** — an IME only appears when an editable
 field has focus, so it could never show over a browser page. The overlay is a `TYPE_ACCESSIBILITY_OVERLAY`
-window added with `WindowManager.addView`, which needs no `SYSTEM_ALERT_WINDOW`, so the zero-permission
-property survives. (the gesture spike named `attachAccessibilityOverlayToDisplay` for this; that API does not work from
+window added with `WindowManager.addView`, which needs no `SYSTEM_ALERT_WINDOW`, so the pad itself
+needs no permission. (the gesture spike named `attachAccessibilityOverlayToDisplay` for this; that API does not work from
 an ordinary app — see the overlay section below.) **Measured 2026-09-02: a finger press reaches its buttons,
 and its presence does not perturb the selection loop at all.**
 
@@ -388,7 +388,8 @@ the OnePlus 15 against `TargetActivity`'s one-line block: **sixteen consecutive 
 way — 11 to 19 and back to 11 — every one moving exactly one character**, at **310-599 ms**, one
 gesture on thirteen of the sixteen. Before: 0.7-2.3 s and two to seven gestures. A long press starts
 a run that stepped sixteen characters in about six seconds, one per step, stopped by a tap. The
-zero-permission property survives (`aapt2 dump permissions` prints the package line and nothing).
+no-permission property survived then (`aapt2 dump permissions` printed the package line and nothing). Since
+2026-10-30 the app's one permission is `POST_NOTIFICATIONS`, for the optional notification (*Run the app*).
 
 Re-measured 2026-09-03 for the START edge and it holds there too: **sixteen presses, 12 to 4 and back
 to 12, one character and one gesture each, 320-361 ms**. But **"held, it does not snap" is not
@@ -3757,7 +3758,9 @@ first build. Verify it on any built APK rather than trusting the manifest:
 & "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.1.0\aapt2.exe" dump permissions <path-to.apk>
 ```
 
-A package line with nothing under it is the pass condition.
+A package line with nothing under it is the pass condition for the spike. **The app's pass condition is the
+package line and `uses-permission: name='android.permission.POST_NOTIFICATIONS'`, and nothing else**
+(since 2026-10-30, for the optional notification; see *Run the app*). INTERNET above all must never appear.
 
 ## Toolchain
 
@@ -4101,8 +4104,8 @@ mistake that should not reach the Console.
 
 Measured 2026-09-23 with a throwaway key: `apksigner verify` reads the release APK as signed by it,
 `jarsigner -verify` accepts the `.aab`, and `aapt2 dump permissions` on the release APK prints the
-package line and nothing else — the zero-permission property holds for the build that ships, not
-only the debug one.
+package line and nothing else — the zero-permission property held for the build that ships, not
+only the debug one. (Since 2026-10-30 it lists `POST_NOTIFICATIONS` as well.)
 
 **Nothing in `play/` is generated except the two PNGs**, which `play/graphics/render.ps1` renders
 from their SVGs with a headless Chrome and `.gitignore` keeps out. The launcher icon's vector and
@@ -4247,8 +4250,8 @@ launcher screen, so the tile is never `STATE_UNAVAILABLE`, because SystemUI deli
 unavailable tile. The tile reads `AscAccessibilityService.padShowing()` when the panel opens, and the
 service calls `TileService.requestListeningState` on connect, unbind, `✕`, **Show the pad** and the
 accessibility button, so a closed panel never shows a stale state. The manifest's
-`BIND_QUICK_SETTINGS_TILE` guards the bind and is not requested, so `aapt2 dump permissions` still
-prints the package line alone. Only the user can put a tile in the panel. So the launcher screen asks
+`BIND_QUICK_SETTINGS_TILE` guards the bind and is not requested, so `aapt2 dump permissions` does not
+list it. Only the user can put a tile in the panel. So the launcher screen asks
 SystemUI to offer it (`StatusBarManager.requestAddTileService`) by itself once, the first time it
 opens after the service has connected (`PadSettings.tileOffered`), and keeps a button for it after.
 A switch there disables the tile's component, which drops it from the panel. **Disabling or enabling
@@ -4259,6 +4262,29 @@ and active after **Show the pad**. With the service off, a tap opened `MainActiv
 answered 1 (already added), then 2 (added) through SystemUI's dialog after `cmd statusbar remove-tile`.
 The switch put `PadTileService` under `disabledComponents` and the tile left the panel. Drive it with
 `adb shell cmd statusbar add-tile|click-tile|remove-tile dev.mnaoumov.selectionpad/.PadTileService`.
+
+**An ongoing notification shows or closes the pad from the notification list, and it is OFF by
+default (owner, 2026-10-30), because it is the app's only permission (`PadNotification`).** The
+manifest declares `POST_NOTIFICATIONS`, so Play lists it, but nothing asks for it until the user
+taps the launcher's `Notification: off`. With the permission held, the tap turns it on. Without it,
+the tap asks, and a refusal leaves the switch off with a hint (`PadSettings.notificationDenied`).
+After a second refusal Android refuses without a dialog, so from then on the tap opens the app's
+notification settings (`shouldShowRequestPermissionRationale` false with the flag set). The
+notification is low importance, silent, ongoing and `VISIBILITY_SECRET`, because the pad never shows
+on the lock screen. It reads `Pad shown|hidden` and carries one action, `Close the pad|Show the pad`,
+through an unexported `PadNotificationReceiver` that calls `togglePad()`, and the body opens the app.
+It shows the same wish as the tile (`padShowing()`), and every place that refreshes the tile now
+calls `refreshToggles`, which refreshes both. It is posted only while the service runs and the
+switch is on and notifications are allowed (`PadNotification.content`), so an unbind cancels it.
+Since Android 14 the user can swipe an ongoing notification away; the next change of the pad posts
+it again. Measured 2026-10-30 on the rig: two refusals, then the third tap opened
+`AppNotificationSettingsActivity`; allowed there, the tap turned it on and it posted `Pad shown`,
+importance LOW, `vis=SECRET`, one action. In the shade its `Close the pad` closed the pad and turned
+into `Show the pad`, which showed it. The pad's `✕`, **Show the pad** and the tile each moved it in
+step. A lock kept `Pad shown` while the pad hid, the switch off and the service off each cancelled it,
+and a rebind posted it again. `pm revoke` cancelled it, and the launcher then said the switch is on
+but notifications are blocked. The accessibility overlay draws above the expanded shade on the rig,
+so the docked pad covers the bottom of the notification list while it is open.
 
 **The system's accessibility button toggles the pad, and it is OFF by default (owner, 2026-10-30), because
 only the user's shortcut shows it. The app cannot switch it.** For a service targeting API 30+,
@@ -4386,8 +4412,8 @@ row checks `PowerManager.isIgnoringBatteryOptimizations` on every resume. It ope
 `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`, which needs no permission, and dontkillmyapp.com's
 page for `Build.MANUFACTURER`, because OnePlus has its own "Allow background activity" switch that
 the platform exemption does not cover. The direct `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`
-prompt was rejected. It needs the `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission, which would end
-the zero-permission property, and Play allows that permission only for apps whose core function
+prompt was rejected. It needs the `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission, a second
+permission the app otherwise does without, and Play allows that permission only for apps whose core function
 fails without it. On the rig, both buttons opened their targets, and the row went away while
 `dumpsys deviceidle whitelist +dev.mnaoumov.selectionpad` was in effect. The screen's bottom padding is 240 dp,
 so the last buttons scroll up clear of the docked pad, which covered them before. With the pad docked at the top, the 240 dp go at the top instead.

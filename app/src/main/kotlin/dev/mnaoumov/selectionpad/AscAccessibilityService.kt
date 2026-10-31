@@ -182,7 +182,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
      */
     accessibilityButtonController.registerAccessibilityButtonCallback(accessibilityButtonCallback)
     Diag.log("accessibility button available=${accessibilityButtonController.isAccessibilityButtonAvailable}")
-    PadTileService.refresh(this)
+    refreshToggles(this)
   }
 
   private val accessibilityButtonCallback = object : AccessibilityButtonController.AccessibilityButtonCallback() {
@@ -203,7 +203,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     settings?.padVisible = false
     mask?.hide()
     pad?.hide()
-    PadTileService.refresh(this)
+    refreshToggles(this)
   }
 
   /**
@@ -257,7 +257,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       }
       LockGate.Action.NONE -> return
     }
-    PadTileService.refresh(this)
+    refreshToggles(this)
   }
 
   /**
@@ -278,7 +278,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     mask = null
     pad?.hide()
     pad = null
-    PadTileService.refresh(this)
+    refreshToggles(this)
     return super.onUnbind(intent)
   }
 
@@ -1232,6 +1232,15 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
      */
     private var connected: AscAccessibilityService? = null
 
+    /**
+     * Tells the other two toggles, the Quick Settings tile and the ongoing notification, that the
+     * pad's state changed. Called wherever the pad opens, closes, connects or goes.
+     */
+    fun refreshToggles(context: android.content.Context) {
+      PadTileService.refresh(context)
+      PadNotification.refresh(context)
+    }
+
     /** Puts the pad back after the user closed it. False when the service is not running. */
     fun showPad(): Boolean {
       val service = connected ?: return false
@@ -1240,7 +1249,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       // While the device is locked this only records the wish; the unlock shows it ([LockGate]).
       // The mask is off while the pad is closed, so a selection already up gets its cover back there.
       service.applyLockGate()
-      PadTileService.refresh(service)
+      refreshToggles(service)
       return true
     }
 

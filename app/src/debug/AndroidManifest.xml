@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-        Debug-only additions. Still NO permissions: the zero-permission property is verified on the
-        built debug APK, so anything added here would show up in `aapt2 dump permissions`.
+        Debug-only additions. Still no permission beyond the main manifest's POST_NOTIFICATIONS: the list is
+        verified on the built debug APK, so anything added here would show up in `aapt2 dump permissions`.
     -->
     <application>
         <activity

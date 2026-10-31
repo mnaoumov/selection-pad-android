@@ -6,8 +6,9 @@
 
 Selection Pad collects nothing and sends nothing, and the only thing it stores is its own pad
 settings. It cannot connect to the
-internet at all: the app requests **no Android permissions**, including no internet access, so the
-operating system itself prevents it from sending anything off the device.
+internet at all: the app has **no internet permission**, so the operating system itself prevents it
+from sending anything off the device. The only permission it can ask for is permission to show a
+notification, and it asks only if you turn that notification on.
 
 ## What the app accesses, and why
 
@@ -34,8 +35,8 @@ Nothing of the above. It keeps the position of the current selection in memory o
 working on it, and no file, database or setting holds any of it.
 
 The one thing it does store is **the pad's own settings**: whether you closed the pad, whether it
-is docked or floating, where you moved it, whether the other app's selection menu is hidden, and whether
-the app has offered its Quick Settings tile.
+is docked or floating, where you moved it, whether the other app's selection menu is hidden, whether
+the app has offered its Quick Settings tile, and whether you turned its notification on.
 These sit in the app's private storage on your device, so that they survive Android restarting the
 service, and are removed when you uninstall the app. They say nothing about any text or any other
 app.
@@ -43,6 +44,13 @@ app.
 The app writes diagnostic lines to the device's system log (logcat), as Android apps commonly do.
 Those lines contain only numbers — offsets, pixel positions and timings — never text, and the app
 does not read or transmit them.
+
+## The optional notification
+
+If you turn it on in the app, Selection Pad shows an ongoing notification with a button that shows
+or closes the pad. Android asks you to allow notifications first; that is the only permission the
+app ever asks for, and you can say no. The notification says only whether the pad is shown. It is
+drawn by your phone and is never sent anywhere. Turning the switch off removes it.
 
 ## What the app shares
 
