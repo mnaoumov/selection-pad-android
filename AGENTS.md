@@ -4233,20 +4233,36 @@ answered 1 (already added), then 2 (added) through SystemUI's dialog after `cmd 
 The switch put `PadTileService` under `disabledComponents` and the tile left the panel. Drive it with
 `adb shell cmd statusbar add-tile|click-tile|remove-tile dev.mnaoumov.selectionpad/.PadTileService`.
 
-**The system's accessibility button toggles the pad, and it is OFF by default (owner, 2026-10-30).**
-The static config no longer carries `flagRequestAccessibilityButton`. The launcher's switch stores
-`PadSettings.accessibilityButton`, and the service adds or removes `FLAG_REQUEST_ACCESSIBILITY_BUTTON`
-on its live `serviceInfo` (logged `accessibility button requested=true|false`), at connect and at once
-when the switch flips. Before that change the config's flag made Android offer the button (or its
-gesture) for this service, and until 2026-10-30 nothing registered a callback, so on the OnePlus 15 the button was shown and did nothing. The service now
-registers one in `onServiceConnected` and drops it in `onUnbind`: a click shows a closed pad and
-closes an open one, the same as **Show the pad** and `✕`, and logs `accessibility button: showing|closing
-the pad`. Measured on the rig the same day: show, close and show again, `padVisible` following each.
-Writing `accessibility_button_targets` with `settings put` was not enough there. The service read
-`available=false` and no button appeared until the shortcut was switched on in Settings →
-Accessibility → Selection Pad, and then only with three-button navigation
-(`cmd overlay enable com.android.internal.systemui.navbar.threebutton`), whose nav bar shows the
-button at its right end. `cmd accessibility call-system-action 11` did not reach the service either.
+**The system's accessibility button toggles the pad, and it is OFF by default (owner, 2026-10-30), because
+only the user's shortcut shows it. The app cannot switch it.** For a service targeting API 30+,
+`FLAG_REQUEST_ACCESSIBILITY_BUTTON` counts only in the static config. `setServiceInfo` keeps its static
+value (`AccessibilityServiceInfo.updateDynamicallyConfigurableProperties`, compat change
+`REQUEST_ACCESSIBILITY_BUTTON_CHANGE`). A runtime switch that set it logged `requested=true` on the rig while
+`dumpsys accessibility` still read `requestA11yBtn=false`, so that switch, shipped in f98e26b, never did
+anything. The flag is back in `accessibility_service_config.xml`. It decides only what a click does: with it,
+the click reaches the pad's callback. Without it, a shortcut the user assigns turns the whole service off and
+on, and a sideloaded build cannot get it back under ECM. What shows the button is the user picking the
+service's shortcut in Settings → Accessibility → Selection Pad. That writes `accessibility_button_targets`
+(or the gesture or volume-key key), and no app can write it. On the OnePlus 15 (2026-10-30) a reinstall had
+emptied it (`button target:{null}`), and no button appeared although the flag was set.
+
+So the launcher has no switch of its own. Its row reads the real state (`ButtonShortcut.assigned` over the three
+target keys) as `Accessibility button: on|off`, with a line saying how to add or remove the shortcut. A tap
+opens Accessibility settings with this service's row highlighted (`:settings:fragment_args_key` set to the
+flattened component). The direct `android.settings.ACCESSIBILITY_DETAILS_SETTINGS` threw `SecurityException`
+on the rig, because a privileged permission guards it. The callback is registered in `onServiceConnected`
+and dropped in `onUnbind`: a click shows a closed pad and closes an open one, the same as **Show the pad** and
+`✕`, and logs `accessibility button: showing|closing the pad`. Measured 2026-10-30 on the rig (gesture
+navigation, `accessibility_button_mode` 1): after a reinstall the targets were empty, there was no
+`FloatingMenu` window, and the launcher read `not assigned`. The launcher's row opened the list with Selection
+Pad highlighted. Its shortcut page's "Accessibility button" box wrote our component into the targets. With
+the targets set, a `FloatingMenu` window appeared, the launcher read `assigned`, and three clicks went show,
+close, show. With the targets deleted, the window went and the launcher read `not assigned` again. Two traps
+on the rig. Settings' shortcut page dumps a stale `checked=false` after a tap, and a second tap clears what
+the first set. The rig also still has the pre-rename `dev.mnaoumov.asc` installed and enabled, under the same
+label. Its own static flag and button target showed a second pad and a second row, so its service was taken
+out of the enabled list for the measurement and put back afterwards. The earlier note that `settings put` of
+the targets was not enough held for the flag-less build. With the flag, `settings put` alone showed the button.
 
 **The pad hides while the phone is locked, and comes back at unlock only if the user had it showing
 (owner, 2026-10-30).** An accessibility overlay draws over the keyguard, and on the OnePlus 15 the pad

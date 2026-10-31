@@ -53,21 +53,14 @@ class PadSettingsTest {
   }
 
   @Test
-  fun theAccessibilityButtonIsOffAndTheTileNotYetOfferedOnAFirstRun() {
-    val settings = reconnect()
-    assertFalse(settings.accessibilityButton)
-    assertFalse(settings.tileOffered)
+  fun theTileIsNotYetOfferedOnAFirstRun() {
+    assertFalse(reconnect().tileOffered)
   }
 
   @Test
-  fun theAccessibilityButtonSwitchAndTheTileOfferSurviveARestart() {
-    reconnect().apply {
-      accessibilityButton = true
-      tileOffered = true
-    }
-    val restarted = reconnect()
-    assertTrue(restarted.accessibilityButton)
-    assertTrue(restarted.tileOffered)
+  fun theTileOfferSurvivesARestart() {
+    reconnect().tileOffered = true
+    assertTrue(reconnect().tileOffered)
   }
 
   @Test

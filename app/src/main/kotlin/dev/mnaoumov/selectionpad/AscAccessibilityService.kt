@@ -175,25 +175,14 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     connected = this
 
     /*
-     * A click on the system's accessibility button (or its gesture shortcut) toggles the pad. The
-     * button is OFF by default (owner, 2026-10-30): the static config does not carry
-     * flagRequestAccessibilityButton, and [applyAccessibilityButton] adds it only while the
-     * launcher's switch is on. The callback is registered either way, so turning the switch on
-     * needs no rebind.
+     * A click on the system's accessibility button (or its gesture or volume-key shortcut) toggles
+     * the pad. The static config requests the button, because on API 30+ only the static value
+     * counts; the button is still off by default, since nothing shows until the user picks the
+     * service's shortcut in Accessibility settings ([ButtonShortcut]).
      */
-    applyAccessibilityButton(settings.accessibilityButton)
     accessibilityButtonController.registerAccessibilityButtonCallback(accessibilityButtonCallback)
     Diag.log("accessibility button available=${accessibilityButtonController.isAccessibilityButtonAvailable}")
     PadTileService.refresh(this)
-  }
-
-  /** Adds or removes `FLAG_REQUEST_ACCESSIBILITY_BUTTON` on the live service info. */
-  private fun applyAccessibilityButton(enabled: Boolean) {
-    val info = serviceInfo ?: return
-    val flag = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_ACCESSIBILITY_BUTTON
-    info.flags = if (enabled) info.flags or flag else info.flags and flag.inv()
-    serviceInfo = info
-    Diag.log("accessibility button requested=$enabled")
   }
 
   private val accessibilityButtonCallback = object : AccessibilityButtonController.AccessibilityButtonCallback() {
@@ -1274,17 +1263,6 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       } else {
         showPad()
       }
-    }
-
-    /**
-     * Stores the launcher's accessibility-button switch and applies it to a running service.
-     * Returns false when the service is not running, so the setting takes effect at its next connect.
-     */
-    fun setAccessibilityButton(context: android.content.Context, enabled: Boolean): Boolean {
-      PadSettings(context.getSharedPreferences(PadSettings.FILE, MODE_PRIVATE)).accessibilityButton = enabled
-      val service = connected ?: return false
-      service.applyAccessibilityButton(enabled)
-      return true
     }
 
     /** How far past the touch slop a drag detours, so a miss cannot read as a tap. */

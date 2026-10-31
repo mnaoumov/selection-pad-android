@@ -7,9 +7,12 @@
     flagRetrieveInteractiveWindows is needed for the floating-toolbar window, which is what locates
     a selection whose node bounds do not hug its text.
 
-    Deliberately NOT flagRequestAccessibilityButton: the system's accessibility button is off by
-    default, and the service adds the flag through setServiceInfo only while the user's switch on
-    the launcher screen is on (PadSettings.accessibilityButton).
+    flagRequestAccessibilityButton is what makes a click on the system's accessibility button reach
+    the pad's callback. It has to be HERE: for a service targeting API 30+, setServiceInfo keeps the
+    static value of this one flag (REQUEST_ACCESSIBILITY_BUTTON_CHANGE), so a runtime switch cannot
+    add or remove it. Without it, a shortcut the user assigns would turn the whole service on and
+    off instead. The button is still off by default (owner, 2026-10-30), because on API 30+ nothing
+    shows until the user picks the service's shortcut in Accessibility settings (ButtonShortcut).
 
     Deliberately NOT isAccessibilityTool: this is the ordinary Play lane, per the policy reading in
     the gesture spike's notes. Claiming the flag would be arguable and risky; the ordinary lane is well trodden.
@@ -17,7 +20,7 @@
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeViewTextSelectionChanged|typeViewScrolled|typeWindowContentChanged|typeWindowStateChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows"
+    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows|flagRequestAccessibilityButton"
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
     android:description="@string/accessibility_service_description"
