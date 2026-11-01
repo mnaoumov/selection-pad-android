@@ -58,6 +58,8 @@ class Pad(
   private val onSwapEdge: () -> kotlin.Unit,
   private val onToggleMenu: () -> kotlin.Unit,
   private val onClose: () -> kotlin.Unit,
+  /** Brings the app's own screen to the front, where the settings are changed. */
+  private val onOpenApp: () -> kotlin.Unit,
   /** Where the mode and a floating pad's position are kept across a restart of the service. */
   private val settings: PadSettings,
 ) {
@@ -364,6 +366,8 @@ class Pad(
     // setting about the view, not a movement, and the grid is already five buttons wide.
     menuButton = button(themed, menuLabel()).apply { setOnClickListener { onToggleMenu() } }
     header.addView(compact(menuButton!!), wrapContent())
+    // The settings live in the app's own screen, which until this was reachable only from the launcher.
+    header.addView(compact(action(themed, "⚙\napp") { onOpenApp() }), wrapContent())
     // Beside the close button, because both answer "this pad is in my way", and the grid is full.
     if (mode == PadMode.DOCKED) header.addView(compact(action(themed, edgeLabel()) { flipEdge() }), wrapContent())
     header.addView(compact(action(themed, "–\nmin") { setMinimised(true) }), wrapContent())
