@@ -19,7 +19,8 @@ import android.service.quicksettings.TileService
  * **Off while the service is off is INACTIVE with a subtitle, not `STATE_UNAVAILABLE`.** SystemUI
  * does not deliver a tap on an unavailable tile at all, and a tap that does nothing is the one thing
  * this tile must not be: with the service off it opens the launcher screen, whose disclosure is the
- * only way to turn the service on.
+ * only way to turn the service on. With the service enabled but not running ([ServiceStatus]) its
+ * subtitle says so, and the launcher screen it opens says how to get it running again.
  *
  * The tile reads the pad's state from the connected service, which shares this process. It is not
  * an active tile, so SystemUI asks for its state whenever the panel opens, and the service asks for
@@ -55,13 +56,20 @@ class PadTileService : TileService() {
   override fun onClick() {
     super.onClick()
     val showing = AscAccessibilityService.togglePad()
-    if (showing == null) {
-      Diag.log("tile: the service is off — opening the launcher screen")
-      openLauncher()
+    if (showing != null) {
+      Diag.log("tile: ${if (showing) "showed" else "closed"} the pad")
+      update()
       return
     }
-    Diag.log("tile: ${if (showing) "showed" else "closed"} the pad")
+    // Off or not running, the launcher screen says which and what to do ([ServiceStatus]).
+    val state = ServiceStatus.state(this)
+    if (state == ServiceStatus.State.NOT_RUNNING) {
+      Diag.record(this, "tile: the service is enabled but not running — opening the launcher screen")
+    } else {
+      Diag.log("tile: the service is off — opening the launcher screen")
+    }
     update()
+    openLauncher()
   }
 
   private fun update() {
@@ -71,7 +79,14 @@ class PadTileService : TileService() {
       true -> Tile.STATE_ACTIVE
       else -> Tile.STATE_INACTIVE
     }
-    tile.subtitle = getString(if (showing == null) R.string.tile_service_off else if (showing) R.string.tile_on else R.string.tile_off)
+    tile.subtitle = getString(
+      when {
+        showing == true -> R.string.tile_on
+        showing == false -> R.string.tile_off
+        ServiceStatus.state(this) == ServiceStatus.State.NOT_RUNNING -> R.string.tile_not_running
+        else -> R.string.tile_service_off
+      }
+    )
     tile.updateTile()
   }
 

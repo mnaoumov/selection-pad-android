@@ -83,13 +83,18 @@ class MainActivity : Activity() {
       Button(this).apply {
         text = getString(R.string.show_pad)
         setOnClickListener {
-          val message =
-            if (AscAccessibilityService.showPad()) R.string.pad_shown else R.string.pad_not_running
+          val message = when {
+            AscAccessibilityService.showPad() -> R.string.pad_shown
+            ServiceStatus.state(this@MainActivity) == ServiceStatus.State.NOT_RUNNING -> R.string.pad_enabled_not_running
+            else -> R.string.pad_not_running
+          }
           Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+          showNotRunningRow()
         }
       }
     )
 
+    column.addView(notRunningRow)
     column.addView(togglesRow)
     column.addView(switchedOffRow)
     column.addView(batteryRow)
@@ -433,17 +438,48 @@ class MainActivity : Activity() {
     }
   }
 
+  /**
+   * Says that the service is switched on but Android is not running it, and what gets it running
+   * again ([ServiceStatus]). Shown only in that state.
+   *
+   * **Measured on the OnePlus 15 on 2026-10-31**: enabled in Accessibility settings, alive as a
+   * process, and not bound, so nothing in the app worked and the tile opened this screen. A just-enabled
+   * service also has no instance for a moment, so the row waits [NOT_RUNNING_GRACE_MS] before it believes
+   * the state.
+   */
+  private val notRunningRow: LinearLayout by lazy {
+    LinearLayout(this).apply {
+      orientation = LinearLayout.VERTICAL
+      setPadding(0, PADDING, 0, 0)
+      visibility = View.GONE
+      addView(
+        TextView(this@MainActivity).apply {
+          text = getString(R.string.not_running_body)
+          textSize = 15f
+        }
+      )
+      addView(
+        Button(this@MainActivity).apply {
+          text = getString(R.string.switched_off_settings)
+          setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        }
+      )
+    }
+  }
+
+  private fun showNotRunningRow() {
+    val notRunning = ServiceStatus.state(this) == ServiceStatus.State.NOT_RUNNING
+    if (notRunningRow.visibility == (if (notRunning) View.VISIBLE else View.GONE)) return
+    notRunningRow.visibility = if (notRunning) View.VISIBLE else View.GONE
+    Diag.log("launcher: ${if (notRunning) "showing" else "hiding"} the not-running row")
+  }
+
   /** OnePlus, OPPO and realme share ColorOS's security centre, which is where the allowlist lives. */
   private fun isOplus(): Boolean =
     Build.MANUFACTURER.lowercase() in setOf("oneplus", "oppo", "realme")
 
   /** Whether the service is in the system's enabled list, which is what a ROM edits when it revokes it. */
-  private fun serviceEnabled(): Boolean {
-    val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-      ?: return false
-    val ours = ComponentName(this, AscAccessibilityService::class.java)
-    return enabled.split(':').any { ComponentName.unflattenFromString(it) == ours }
-  }
+  private fun serviceEnabled(): Boolean = ServiceStatus.enabled(this)
 
   /**
    * The docked pad covers an edge of every screen, this one included, so the first or last lines
@@ -465,6 +501,11 @@ class MainActivity : Activity() {
     batteryRow.visibility = if (exempt) View.GONE else View.VISIBLE
     val switchedOff = settings.serviceConnectedOnce && !serviceEnabled()
     switchedOffRow.visibility = if (switchedOff) View.VISIBLE else View.GONE
+    if (ServiceStatus.state(this) == ServiceStatus.State.NOT_RUNNING) {
+      column.postDelayed({ showNotRunningRow() }, NOT_RUNNING_GRACE_MS)
+    } else {
+      showNotRunningRow()
+    }
     showToggles()
     // Notifications may have been allowed or blocked in Settings since the screen was last shown.
     PadNotification.refresh(this)
@@ -478,6 +519,15 @@ class MainActivity : Activity() {
       offerTile()
     }
     column.post { logFit() }
+    AscAccessibilityService.onToggled = {
+      showNotRunningRow()
+      showToggles()
+    }
+  }
+
+  override fun onPause() {
+    AscAccessibilityService.onToggled = null
+    super.onPause()
   }
 
   private companion object {
@@ -485,6 +535,9 @@ class MainActivity : Activity() {
 
     /** More than the docked pad's height: 152 dp on the rig, three rows of buttons and the padding. */
     const val PAD_CLEARANCE_DP = 240
+
+    /** How long a service found enabled with no instance is given to connect before the row says so. */
+    const val NOT_RUNNING_GRACE_MS = 1500L
 
     /** The Settings app's extra naming the preference to highlight; not in the public SDK. */
     const val FRAGMENT_ARG_KEY = ":settings:fragment_args_key"

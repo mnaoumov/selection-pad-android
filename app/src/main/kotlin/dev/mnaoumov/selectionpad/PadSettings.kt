@@ -73,6 +73,14 @@ class PadSettings(private val preferences: SharedPreferences) {
     get() = preferences.getBoolean(KEY_NOTIFICATION_DENIED, false)
     set(value) = preferences.edit().putBoolean(KEY_NOTIFICATION_DENIED, value).apply()
 
+  /**
+   * The timestamp of the newest process exit already written to the lifecycle file, so each connect
+   * records only the exits since ([Diag.record]).
+   */
+  var lastExitRecorded: Long
+    get() = preferences.getLong(KEY_LAST_EXIT_RECORDED, 0L)
+    set(value) = preferences.edit().putLong(KEY_LAST_EXIT_RECORDED, value).apply()
+
   /** Docked or floating. An unknown stored name, from some later build, falls back to docked. */
   var mode: PadMode
     get() = PadMode.entries.firstOrNull { it.name == preferences.getString(KEY_MODE, null) } ?: PadMode.DOCKED
@@ -117,6 +125,7 @@ class PadSettings(private val preferences: SharedPreferences) {
     private const val KEY_TILE_IN_PANEL = "tileInPanel"
     private const val KEY_NOTIFICATION_ON ="notificationOn"
     private const val KEY_NOTIFICATION_DENIED = "notificationDenied"
+    private const val KEY_LAST_EXIT_RECORDED = "lastExitRecorded"
     private const val KEY_MODE = "mode"
     private const val KEY_DOCK_EDGE = "dockEdge"
     private const val KEY_MINIMISED = "minimised"
