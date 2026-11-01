@@ -4244,6 +4244,20 @@ top, `disclosure fit` read `first line at y 1020` (84 + 96 + 840). Auto-dodge, w
 itself when the selection is under it, was considered and not built: it moves the pad from under the
 user's finger unasked. The phone has not run any of this yet.
 
+**The header's `⚙ app` opens the launcher screen, where the settings are (owner, 2026-10-31).** Until then
+that screen was reachable only from the launcher icon. The service starts `MainActivity` with
+`FLAG_ACTIVITY_NEW_TASK or FLAG_ACTIVITY_CLEAR_TASK`, because a bound accessibility service is exempt from the
+background-activity-launch limits. The pad stays as it is, because that screen keeps 240 dp clear at the
+docked pad's edge. `CLEAR_TASK` is needed because `NEW_TASK` alone brought the app's existing task forward and
+pushed the screen on top of it. Measured on the rig on 2026-11-01, `⚙ app` pressed over Chrome opened the
+screen on top of the debug target left in the app's task, and Back then went to that target, not to Chrome.
+With `CLEAR_TASK`, 3 runs of 3 opened a fresh `MainActivity` in its own task, and Back returned to Chrome with
+the pad still docked. The flag also destroys the debug target, because it lives in the app's own task, so a
+selection there does not survive the trip. **Chrome clears its own selection when it goes to the background**,
+so after Back the pad says `select some text first`. A fresh long-press then stepped `22 -> 23 -> 22`, 1
+gesture each. The header still fits on the rig's 720 px: `⚙ app` is a 96 px button at x 320, and the status
+line keeps x 16..210. The floating pad's header carries it too. The phone has not run it yet.
+
 **A Quick Settings tile toggles the pad from the notification panel (`PadTileService`).** It is
 active while the pad shows and inactive while it is closed. A tap with the service off opens the
 launcher screen, so the tile is never `STATE_UNAVAILABLE`, because SystemUI delivers no tap on an

@@ -29,7 +29,7 @@ not generalise as cleanly: Google Docs, for instance, fires no selection event a
 falls back to reading the node tree.
 
 A floating pad provides the controls: move by character or by word, move either edge, and swap which
-edge is moving. A Quick Settings tile shows or hides the pad from the notification panel, so does
+edge is moving. Its `⚙ app` button opens the app's own screen, where the settings are. A Quick Settings tile shows or hides the pad from the notification panel, so does
 an optional ongoing notification you turn on in the app, and the
 system's accessibility button can too, once you give Selection Pad its shortcut in Accessibility settings. The pad hides while the
 phone is locked, so it never shows on the lock screen, and comes back after you unlock if it was showing.

@@ -148,6 +148,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       onSwapEdge = ::onSwapEdge,
       onToggleMenu = ::onToggleMenu,
       onClose = ::closePad,
+      onOpenApp = ::openApp,
       settings = settings,
     ).also { it.setMenuMasked(settings.menuMasked) }
 
@@ -363,6 +364,27 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       // Leave the cover where it is until the toolbar has been away long enough to believe.
       MaskAction.KEEP -> Unit
     }
+  }
+
+  /**
+   * The pad's `⚙` button: the launcher screen, where the settings are. A bound accessibility service
+   * is exempt from the background-activity-launch limits, so it can start an activity directly. The
+   * pad stays as it is, because that screen keeps clear of the edge the docked pad is on.
+   *
+   * CLEAR_TASK as well, because NEW_TASK alone brings the app's existing task forward and pushes the
+   * screen on top of whatever it held: measured on the rig, Back then went to the debug target left
+   * in that task, not to Chrome, where the button was pressed.
+   */
+  private fun openApp() {
+    repeating = null
+    val intent = android.content.Intent(this, MainActivity::class.java)
+      .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+    runCatching { startActivity(intent) }
+      .onSuccess { Diag.log("pad: opening the app") }
+      .onFailure {
+        Diag.log("pad: opening the app failed: $it")
+        pad?.showStatus("couldn't open the app")
+      }
   }
 
   private fun onToggleMenu() {
