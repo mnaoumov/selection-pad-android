@@ -88,6 +88,15 @@ class PadSettingsTest {
   }
 
   @Test
+  fun theTileIsNotInThePanelUntilSystemUiSaysSo() {
+    assertFalse(reconnect().tileInPanel)
+    reconnect().tileInPanel = true
+    assertTrue(reconnect().tileInPanel)
+    reconnect().tileInPanel = false
+    assertFalse(reconnect().tileInPanel)
+  }
+
+  @Test
   fun theNotificationIsOffOnAFirstRun() {
     val settings = reconnect()
     assertFalse(settings.notificationOn)

@@ -48,6 +48,15 @@ class PadSettings(private val preferences: SharedPreferences) {
     set(value) = preferences.edit().putBoolean(KEY_TILE_OFFERED, value).apply()
 
   /**
+   * Whether the Quick Settings tile is in the panel, as SystemUI last told the tile
+   * (`onTileAdded`, `onTileRemoved`, or a bind to listen, which only a tile in the panel gets). Only
+   * the user can add a tile, so the app cannot read this anywhere else.
+   */
+  var tileInPanel: Boolean
+    get() = preferences.getBoolean(KEY_TILE_IN_PANEL, false)
+    set(value) = preferences.edit().putBoolean(KEY_TILE_IN_PANEL, value).apply()
+
+  /**
    * Whether the user turned on the ongoing notification ([PadNotification]). Off by default (owner,
    * 2026-10-30), so the app asks for no permission until the user turns it on.
    */
@@ -105,7 +114,8 @@ class PadSettings(private val preferences: SharedPreferences) {
     private const val KEY_MENU_MASKED = "menuMasked"
     private const val KEY_SERVICE_CONNECTED_ONCE = "serviceConnectedOnce"
     private const val KEY_TILE_OFFERED = "tileOffered"
-    private const val KEY_NOTIFICATION_ON = "notificationOn"
+    private const val KEY_TILE_IN_PANEL = "tileInPanel"
+    private const val KEY_NOTIFICATION_ON ="notificationOn"
     private const val KEY_NOTIFICATION_DENIED = "notificationDenied"
     private const val KEY_MODE = "mode"
     private const val KEY_DOCK_EDGE = "dockEdge"

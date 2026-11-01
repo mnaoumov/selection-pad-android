@@ -12,6 +12,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 
@@ -172,12 +173,14 @@ class MainActivity : Activity() {
   }
 
   /**
-   * The other two ways to show or hide the pad (owner, 2026-10-30): the Quick Settings tile, on by
-   * default, and the system's accessibility button, off by default.
+   * The other ways to show or hide the pad, each a real switch whose checked state is the real state
+   * (owner, 2026-10-31): the Quick Settings tile, the notification and the accessibility button.
    *
-   * **Only the user can put a tile in the panel**, so "on by default" means the tile's component is
-   * enabled from install and the app asks SystemUI to offer it ([offerTile]). The switch disables
-   * the component, which takes the tile out of the panel.
+   * **Only the user can put a tile in the panel**, so the tile's switch is ONE control over two
+   * mechanisms: on asks SystemUI to add the tile ([offerTile]), off disables the tile's component,
+   * which is the only way an app can take it out. It used to be an on/off button that only enabled
+   * or disabled the component, beside a separate Add button, and turning it back on never put the
+   * tile back (phone, 2026-10-31), which read as "Add stopped working".
    */
   private val togglesRow: LinearLayout by lazy {
     LinearLayout(this).apply {
@@ -189,7 +192,6 @@ class MainActivity : Activity() {
           textSize = 15f
         }
       )
-      addView(addTileButton)
       addView(tileSwitch)
       addView(notificationSwitch)
       addView(notificationHint)
@@ -204,8 +206,10 @@ class MainActivity : Activity() {
    * shortcut ([ButtonShortcut]), so this opens the page where that is done, either way.
    */
   private val buttonSwitch by lazy {
-    Button(this).apply {
+    toggle(R.string.button_switch).apply {
       setOnClickListener {
+        // The tap has flipped the switch; only the user's shortcut can, so put it back until it does.
+        showToggles()
         val message = if (buttonAssigned()) R.string.button_remove_shortcut else R.string.button_pick_shortcut
         Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
         openShortcutSettings()
@@ -237,18 +241,31 @@ class MainActivity : Activity() {
     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).putExtra(FRAGMENT_ARG_KEY, ours))
   }
 
-  private val addTileButton by lazy {
-    Button(this).apply {
-      text = getString(R.string.tile_add)
-      setOnClickListener { offerTile() }
-    }
+  /**
+   * A platform switch row, label on the left. Each is driven by its click, never by its checked
+   * state: the tap only asks, and [showToggles] then sets the switch to what is really so.
+   */
+  private fun toggle(label: Int) = Switch(this).apply {
+    text = getString(label)
+    textSize = 17f
+    setPadding(0, PADDING / 2, 0, PADDING / 2)
   }
 
   private val tileSwitch by lazy {
-    Button(this).apply {
+    toggle(R.string.tile_switch).apply {
       setOnClickListener {
-        PadTileService.setEnabled(this@MainActivity, !PadTileService.isEnabled(this@MainActivity))
-        showToggles()
+        if (PadTileService.inPanel(this@MainActivity, settings)) {
+          // Disabling the component is the only way an app can take its tile out of the panel.
+          settings.tileInPanel = false
+          PadTileService.setEnabled(this@MainActivity, false)
+          Toast.makeText(this@MainActivity, R.string.tile_removed, Toast.LENGTH_LONG).show()
+          showToggles()
+        } else {
+          if (!PadTileService.isEnabled(this@MainActivity)) PadTileService.setEnabled(this@MainActivity, true)
+          // Off until SystemUI answers that the tile is in.
+          showToggles()
+          offerTile()
+        }
       }
     }
   }
@@ -262,8 +279,10 @@ class MainActivity : Activity() {
    * switch opens the app's notification settings instead of asking into silence.
    */
   private val notificationSwitch by lazy {
-    Button(this).apply {
+    toggle(R.string.notification_switch).apply {
       setOnClickListener {
+        // The tap has flipped the switch already; it shows what is really so until the flow below settles it.
+        showToggles()
         when {
           settings.notificationOn -> setNotification(false)
           notificationsAllowed() -> setNotification(true)
@@ -320,7 +339,7 @@ class MainActivity : Activity() {
   private fun showNotificationSwitch() {
     val on = settings.notificationOn
     val allowed = notificationsAllowed()
-    notificationSwitch.text = getString(if (on) R.string.notification_switch_on else R.string.notification_switch_off)
+    notificationSwitch.isChecked = on
     val hint = when {
       on && allowed -> null
       on -> R.string.notification_hint_blocked
@@ -333,11 +352,9 @@ class MainActivity : Activity() {
 
   private fun showToggles() {
     showNotificationSwitch()
-    val tileEnabled = PadTileService.isEnabled(this)
-    tileSwitch.text = getString(if (tileEnabled) R.string.tile_switch_on else R.string.tile_switch_off)
-    addTileButton.visibility = if (tileEnabled) View.VISIBLE else View.GONE
+    tileSwitch.isChecked = PadTileService.inPanel(this, settings)
     val assigned = buttonAssigned()
-    buttonSwitch.text = getString(if (assigned) R.string.button_switch_on else R.string.button_switch_off)
+    buttonSwitch.isChecked = assigned
     buttonHint.text = getString(if (assigned) R.string.button_hint_on else R.string.button_hint_off)
     Diag.log("button: launcher reads the shortcut as ${if (assigned) "assigned" else "not assigned"}")
   }
@@ -346,7 +363,8 @@ class MainActivity : Activity() {
    * Asks SystemUI to offer the tile (`StatusBarManager.requestAddTileService`, API 33, which is the
    * app's floor). SystemUI shows its own dialog; an already-added tile answers at once with no
    * dialog. The result is logged and, when the tile could not be offered, the toast says where to
-   * add it by hand.
+   * add it by hand. SystemUI puts a new tile at the END of the panel, on its last page (phone,
+   * 2026-10-31), where it is easy to miss, so that toast says so.
    */
   private fun offerTile() {
     val statusBar = getSystemService(android.app.StatusBarManager::class.java)
@@ -358,12 +376,18 @@ class MainActivity : Activity() {
     ) { result ->
       Diag.log("tile: add request answered $result")
       val message = when (result) {
-        android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED,
+        android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> R.string.tile_added_at_end
         android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> R.string.tile_added
         android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED -> null
         else -> R.string.tile_add_failed
       }
+      if (result == android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED ||
+        result == android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED
+      ) {
+        settings.tileInPanel = true
+      }
       if (message != null) Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+      showToggles()
     }
   }
 
@@ -449,7 +473,7 @@ class MainActivity : Activity() {
      * that is still off would only open this screen again, and the dialog would cover the
      * disclosure, which has to be read first.
      */
-    if (settings.serviceConnectedOnce && !settings.tileOffered && PadTileService.isEnabled(this)) {
+    if (settings.serviceConnectedOnce && !settings.tileOffered && PadTileService.isEnabled(this) && !settings.tileInPanel) {
       settings.tileOffered = true
       offerTile()
     }
