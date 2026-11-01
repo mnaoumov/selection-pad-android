@@ -4441,6 +4441,55 @@ logcat's 256 KiB ring holds minutes, so read the exit history, not logcat, to se
 happened while nobody was watching. Before the exemption it listed six `o-kill(72)` between
 17:31 and 17:51 on 2026-10-16, and `o-kill(322)` at 23:30 on 2026-10-15 and at 00:21 on 2026-10-17.
 
+**The service keeps its lifecycle in a ring file, `files/lifecycle.log`, which outlives logcat and the
+process alike.** Read it with `adb shell run-as dev.mnaoumov.selectionpad cat files/lifecycle.log`. Each line
+has a time and the pid. `Diag.record` writes the service's create, connect, unbind and destroy, the
+toggles finding the service not running, and, at each connect, every process exit since the last one,
+with the system's own reason (`exit: pid 4429 at ..., reason=16 status=0 (stop dev.mnaoumov.selectionpad due
+to installPackageLI)`). It keeps the last 300 lines, and it never holds page text.
+
+**Enabled is not running, and the toggles now say so.** On the OnePlus 15 (2026-10-31) the service was in
+`enabled_accessibility_services` and under `dumpsys accessibility`'s Enabled services, but not under Bound
+services, with the process alive and nothing crashed. The tile, the notification and **Show the pad** all
+found no service and silently opened the app. What unbound it there is not known, because logcat had
+already rotated, and that is what the ring file is for. `ServiceStatus` tells three states apart: running,
+enabled but not running, and off. Enabled but not running:
+
+- the tile's subtitle reads `Not running — tap for help`, and a tap opens the launcher screen;
+- the notification stays posted as `Not running — turn it off and on in Accessibility settings`, and its
+  button, `What to do`, opens the launcher screen (a notification's broadcast cannot start an activity);
+- the launcher screen shows a row that says what is wrong and what fixes it: turning the service off and on
+  in Accessibility settings, or restarting the phone, which binds every enabled service. That row and the
+  switches follow the service live while the screen is in front (`AscAccessibilityService.onToggled`).
+
+The accessibility button is the system's, and an unbound service gets no click, so it cannot say anything.
+
+**The app cannot get its service bound again by itself.** Measured on the rig on 2026-11-01:
+`setComponentEnabledSetting` off and straight back on, on a no-op receiver and on the accessibility
+service itself, left an unbound service unbound and an inert bound instance untouched, even 13 s later.
+The shell cannot flip a component (`Shell cannot change component state`), so that was measured from the
+app. Leaving the service's component disabled would make Android drop the service from the enabled list,
+which on an ECM-restricted install the user cannot turn back on, so nothing tries.
+
+**A UiAutomation connection suspends every accessibility service while it lasts, and that is how the rig
+reproduces the phone's state.** `uiautomator dump` connects and disconnects, so each dump unbinds the
+service and binds a new instance about 1 s later (the ring file shows `unbound`, `destroyed`, `created`,
+`connected`). That is one more reason a dump breaks a measurement. `adb shell uiautomator events` keeps the
+connection open. While it runs, the service is enabled, not bound, and its process is alive, which is the
+phone's shape exactly, and `pkill -f uiautomator` binds it again. Measured 2026-11-01 on the rig: with it
+running, the launcher logged `showing the not-running row`, the tile tap logged `the service is enabled but not
+running` and opened `MainActivity`, and the notification read the not-running text with its one action,
+`What to do`, a `startActivity` PendingIntent. After the `pkill`, the row hid itself and the notification went
+back to `Pad shown`. With `pad.ps1 off` the notification was cancelled, not posted as not running. Whether
+something on the phone held a UiAutomation connection on 2026-10-31 is not known. Bitwarden was bound while
+this service was not, which a suspension of every service does not explain on its own.
+
+**`adb shell run-as dev.mnaoumov.selectionpad touch files/force-not-running`, then `rig.ps1 rebind`, leaves the
+next connection inert** on a debuggable build: the instance is bound, but it publishes nothing, so the app
+sees the service as not running (it records `debug: leaving this connection inert`). The marker is deleted on
+use. The rig's `rebind` can connect twice, which uses the marker up on the first connect, so check the ring
+file. Prefer `uiautomator events`, which is the real state.
+
 **The launcher screen asks for the battery-optimization exemption while the app lacks it.** The
 row checks `PowerManager.isIgnoringBatteryOptimizations` on every resume. It opens
 `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`, which needs no permission, and dontkillmyapp.com's

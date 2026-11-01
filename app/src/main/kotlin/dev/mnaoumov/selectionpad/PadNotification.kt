@@ -18,7 +18,9 @@ import android.graphics.drawable.Icon
  * notification on in the launcher screen. Nothing in it leaves the phone: it is drawn by the
  * system from what the app posts locally.
  *
- * It is posted only while the service runs and the user has it on, and it follows the same wish
+ * It is posted while the service is enabled and the user has it on. While the service is enabled but
+ * not running ([ServiceStatus]) it says so, and its button opens the launcher screen, which says how
+ * to get it running again. Otherwise it follows the same wish
  * the tile shows ([AscAccessibilityService.padShowing]), so a lock does not flip it. It is
  * `VISIBILITY_SECRET`, because the pad itself never shows on the lock screen.
  *
@@ -28,22 +30,35 @@ import android.graphics.drawable.Icon
  */
 object PadNotification {
 
-  /** What to post: whether the pad is wanted on screen. Null means post nothing. */
-  data class Content(val padShown: Boolean)
+  /**
+   * What to post: whether the pad is wanted on screen, or null for "enabled but not running"
+   * ([ServiceStatus]), which says so. A null [Content] means post nothing.
+   */
+  data class Content(val padShown: Boolean?)
 
   /**
    * Whether to post, and what. [on] is the user's switch, [allowed] whether the system lets the app
-   * post at all (the permission, and the app's notifications not blocked in Settings), and [wanted]
-   * the pad's wished state, null while the service is not running.
+   * post at all (the permission, and the app's notifications not blocked in Settings), [wanted] the
+   * pad's wished state, null while the service is not running, and [enabled] whether the service is
+   * in the system's enabled list.
    */
-  fun content(on: Boolean, allowed: Boolean, wanted: Boolean?): Content? =
-    if (on && allowed && wanted != null) Content(wanted) else null
+  fun content(on: Boolean, allowed: Boolean, wanted: Boolean?, enabled: Boolean): Content? = when {
+    !on || !allowed -> null
+    wanted != null -> Content(wanted)
+    enabled -> Content(null)
+    else -> null
+  }
 
   /** Posts, updates or cancels the notification to match the switch and the pad. */
   fun refresh(context: Context) {
     val manager = context.getSystemService(NotificationManager::class.java)
     val settings = PadSettings(context.getSharedPreferences(PadSettings.FILE, Context.MODE_PRIVATE))
-    val content = content(settings.notificationOn, manager.areNotificationsEnabled(), AscAccessibilityService.padShowing())
+    val content = content(
+      settings.notificationOn,
+      manager.areNotificationsEnabled(),
+      AscAccessibilityService.padShowing(),
+      ServiceStatus.enabled(context),
+    )
     if (content == null) {
       manager.cancel(ID)
       return
@@ -71,13 +86,28 @@ object PadNotification {
     val notification = Notification.Builder(context, CHANNEL)
       .setSmallIcon(icon)
       .setContentTitle(context.getString(R.string.app_name))
-      .setContentText(context.getString(if (content.padShown) R.string.notification_shown else R.string.notification_hidden))
+      .setContentText(
+        context.getString(
+          when (content.padShown) {
+            true -> R.string.notification_shown
+            false -> R.string.notification_hidden
+            null -> R.string.notification_not_running
+          }
+        )
+      )
       .setContentIntent(openApp)
       .addAction(
         Notification.Action.Builder(
           icon,
-          context.getString(if (content.padShown) R.string.notification_close else R.string.show_pad),
-          toggle,
+          context.getString(
+            when (content.padShown) {
+              true -> R.string.notification_close
+              false -> R.string.show_pad
+              null -> R.string.notification_what_to_do
+            }
+          ),
+          // Not running, nothing can toggle; the launcher screen says how to get it running again.
+          if (content.padShown == null) openApp else toggle,
         ).build()
       )
       .setOngoing(true)
@@ -87,7 +117,7 @@ object PadNotification {
       .setVisibility(Notification.VISIBILITY_SECRET)
       .build()
     manager.notify(ID, notification)
-    Diag.log("notification: posted (pad ${if (content.padShown) "shown" else "hidden"})")
+    Diag.log("notification: posted (${when (content.padShown) { true -> "pad shown"; false -> "pad hidden"; null -> "service not running" }})")
   }
 
   private const val CHANNEL = "pad"
@@ -103,8 +133,16 @@ class PadNotificationReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     if (intent.action != PadNotification.ACTION_TOGGLE) return
     val showing = AscAccessibilityService.togglePad()
-    Diag.log("notification: ${if (showing == null) "the service is off" else if (showing) "showed the pad" else "closed the pad"}")
-    // togglePad refreshes it; with the service off it cancels it.
-    if (showing == null) PadNotification.refresh(context)
+    if (showing != null) {
+      // togglePad refreshes it.
+      Diag.log("notification: ${if (showing) "showed the pad" else "closed the pad"}")
+      return
+    }
+    /*
+     * The service went between the post and the tap. Re-posting turns this into the not-running
+     * form, whose button opens the launcher screen, or cancels it when the service is off.
+     */
+    Diag.record(context, "notification: the button found no service running")
+    PadNotification.refresh(context)
   }
 }

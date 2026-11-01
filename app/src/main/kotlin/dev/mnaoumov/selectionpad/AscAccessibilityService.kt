@@ -77,12 +77,31 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
    */
   private var repeating: PadCommand? = null
 
+  override fun onCreate() {
+    super.onCreate()
+    Diag.record(this, "service: created")
+  }
+
+  override fun onDestroy() {
+    Diag.record(this, "service: destroyed")
+    super.onDestroy()
+  }
+
   override fun onServiceConnected() {
     super.onServiceConnected()
 
     // The rig is API 37, so only this reproduces a 36.0 device's blind Chrome there. A debuggable
     // build alone can be given the file: `adb shell run-as dev.mnaoumov.selectionpad touch files/<name>`.
     val debuggable = applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+    // And for the handset's service that stayed enabled with no instance running: this connect is
+    // left inert, so the tile, the notification and the launcher see the service not running.
+    val markerUnbound = java.io.File(filesDir, FORCE_NOT_RUNNING)
+    if (debuggable && markerUnbound.exists()) {
+      markerUnbound.delete()
+      Diag.record(this, "debug: leaving this connection inert, as if the service were not running")
+      return
+    }
+    recordExits()
     observer.forceNoExtendedSelection = debuggable && java.io.File(filesDir, FORCE_NO_EXTENDED_SELECTION).exists()
     if (observer.forceNoExtendedSelection) Diag.log("debug: treating the platform as below 36.1")
     // And for the handset's Chrome 154, which announced a seam beside a bare `<sup>` from the `<p>`.
@@ -160,7 +179,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     val visible = settings.padVisible
     // A restart can come while the phone is locked, and the pad must not appear on the lock screen.
     locked = deviceLocked()
-    Diag.log("service connected (pad was ${if (visible) "visible" else "hidden"}, ${settings.mode}, locked=$locked)")
+    Diag.record(this, "service connected (pad was ${if (visible) "visible" else "hidden"}, ${settings.mode}, locked=$locked)")
     /*
      * EXPORTED, because SystemUI sends USER_PRESENT under its own uid, not the system's, and a
      * NOT_EXPORTED receiver hears only its own app and the system: measured on the rig, the unlock
@@ -171,9 +190,9 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       addAction(android.content.Intent.ACTION_SCREEN_ON)
       addAction(android.content.Intent.ACTION_USER_PRESENT)
     }, RECEIVER_EXPORTED)
-    applyLockGate()
-
+    // Published first, so the toggles the lock gate refreshes see the service running.
     connected = this
+    applyLockGate()
 
     /*
      * A click on the system's accessibility button (or its gesture or volume-key shortcut) toggles
@@ -270,7 +289,25 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     return if (locked) settings?.padVisible ?: pad.isShowing else pad.isShowing
   }
 
+  /**
+   * Writes the app's process exits since the last connect to the lifecycle file: the system's own
+   * reason for each, so a kill by the ROM, a crash and an update can be told apart afterwards.
+   */
+  private fun recordExits() {
+    val settings = PadSettings(getSharedPreferences(PadSettings.FILE, MODE_PRIVATE))
+    val exits = runCatching {
+      getSystemService(android.app.ActivityManager::class.java).getHistoricalProcessExitReasons(null, 0, EXITS_READ)
+    }.getOrDefault(emptyList())
+    val fresh = exits.filter { it.timestamp > settings.lastExitRecorded }.sortedBy { it.timestamp }
+    for (exit in fresh) {
+      val time = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date(exit.timestamp))
+      Diag.record(this, "exit: pid ${exit.pid} at $time, reason=${exit.reason} status=${exit.status} (${exit.description ?: "no description"})")
+    }
+    fresh.lastOrNull()?.let { settings.lastExitRecorded = it.timestamp }
+  }
+
   override fun onUnbind(intent: android.content.Intent?): Boolean {
+    Diag.record(this, "service: unbound (${if (connected === this) "the connected instance" else "an instance that was not connected"})")
     if (connected === this) connected = null
     runCatching { unregisterReceiver(lockReceiver) }
     accessibilityButtonController.unregisterAccessibilityButtonCallback(accessibilityButtonCallback)
@@ -1261,7 +1298,14 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     fun refreshToggles(context: android.content.Context) {
       PadTileService.refresh(context)
       PadNotification.refresh(context)
+      onToggled?.invoke()
     }
+
+    /**
+     * Called on the main thread wherever [refreshToggles] is, connects and unbinds included, so the
+     * launcher screen, while it is in front, follows the service as it comes and goes.
+     */
+    var onToggled: (() -> Unit)? = null
 
     /** Puts the pad back after the user closed it. False when the service is not running. */
     fun showPad(): Boolean {
@@ -1280,6 +1324,9 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
      * tile, which shows the wish rather than the window, so a lock does not flip it off.
      */
     fun padShowing(): Boolean? = connected?.padWanted()
+
+    /** Whether a connected instance exists in this process ([ServiceStatus]). */
+    fun running(): Boolean = connected != null
 
     /**
      * Shows a closed pad or closes an open one, as the tile and the accessibility button do.
@@ -1304,6 +1351,12 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
 
     /** How long an announcement stays trustworthy before the node rung is worth a walk. */
     const val STALE_MS = 4000L
+
+    /** How many process exits a connect reads back from the system ([recordExits]). */
+    const val EXITS_READ = 8
+
+    /** The debug marker file that leaves the next connection inert, as if not running: see [onServiceConnected]. */
+    const val FORCE_NOT_RUNNING = "force-not-running"
 
     /** The debug marker file under `filesDir` that forces the 36.1 gate off: see [onServiceConnected]. */
     const val FORCE_NO_EXTENDED_SELECTION = "force-no-extended-selection"
