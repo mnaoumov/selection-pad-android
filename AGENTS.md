@@ -4267,8 +4267,28 @@ accessibility button, so a closed panel never shows a stale state. The manifest'
 `BIND_QUICK_SETTINGS_TILE` guards the bind and is not requested, so `aapt2 dump permissions` does not
 list it. Only the user can put a tile in the panel. So the launcher screen asks
 SystemUI to offer it (`StatusBarManager.requestAddTileService`) by itself once, the first time it
-opens after the service has connected (`PadSettings.tileOffered`), and keeps a button for it after.
-A switch there disables the tile's component, which drops it from the panel. **Disabling or enabling
+opens after the service has connected (`PadSettings.tileOffered`).
+
+**After that, the launcher has ONE switch for the tile, and it is checked only while the tile is in
+the panel (owner, 2026-10-31).** On the phone it used to be an on/off button that only enabled or
+disabled the component, next to a separate Add button. Turning it back on never put the tile back, so
+it looked as if Add had stopped working. A new tile also lands at the END of the panel, on its last page.
+Whether the tile is in the panel is known only to the tile. So `PadTileService` records it in
+`PadSettings.tileInPanel`: true from `onTileAdded` and from `onStartListening` (SystemUI binds only a
+tile that is in the panel, which also covers one added before this tracking), and false from
+`onTileRemoved`. The switch shows `PadTileService.inPanel`, which is that flag with the component
+enabled. Off disables the component and leaves it disabled. On enables it again, then asks SystemUI to
+add the tile, and the switch turns on only when the answer is added (2) or already added (1). On an
+added answer the toast says the tile is on the last page and how to drag it. All three toggles on that
+screen are platform `Switch` rows. Each one is driven by its click and then set to the real state, so
+the accessibility button's switch (only the user's shortcut can turn it on) flips back at once and opens
+the settings page. Measured 2026-11-01 on the rig: `remove-tile` logged `tile: removed from the panel`,
+the switch read off, a tap showed SystemUI's dialog, `Add tile` answered 2 with `tile: added to the
+panel`, and the switch read on. Off put `PadTileService` under `disabledComponents`. On again showed the
+dialog. `Don't add tile` answered 0 and left the switch off, and the next try answered 1. **Stock SystemUI
+keeps a disabled tile's spec in `sysui_qs_tiles`**, so on the rig the re-enabled tile was back in its old
+place before the dialog. On the phone OxygenOS removes it (`OplusTileControllerImpl removeTile`). So the
+rig cannot show the phone's off-then-on, which then has to answer 2. **Disabling or enabling
 that component rebinds the accessibility service** (the package-changed broadcast), so the switch
 costs a reconnect, and the pad's stored state carries over. Measured 2026-10-30 on the rig: the tile
 closed and showed the pad (`tile: closed the pad`, `tile: showed the pad`), read inactive after `✕`
@@ -4280,7 +4300,7 @@ The switch put `PadTileService` under `disabledComponents` and the tile left the
 **An ongoing notification shows or closes the pad from the notification list, and it is OFF by
 default (owner, 2026-10-30), because it is the app's only permission (`PadNotification`).** The
 manifest declares `POST_NOTIFICATIONS`, so Play lists it, but nothing asks for it until the user
-taps the launcher's `Notification: off`. With the permission held, the tap turns it on. Without it,
+turns on the launcher's `Notification` switch. With the permission held, the tap turns it on. Without it,
 the tap asks, and a refusal leaves the switch off with a hint (`PadSettings.notificationDenied`).
 After a second refusal Android refuses without a dialog, so from then on the tap opens the app's
 notification settings (`shouldShowRequestPermissionRationale` false with the flag set). The
@@ -4314,7 +4334,7 @@ service's shortcut in Settings → Accessibility → Selection Pad. That writes 
 emptied it (`button target:{null}`), and no button appeared although the flag was set.
 
 So the launcher has no switch of its own. Its row reads the real state (`ButtonShortcut.assigned` over the three
-target keys) as `Accessibility button: on|off`, with a line saying how to add or remove the shortcut. A tap
+target keys) on its `Accessibility button` switch, with a line saying how to add or remove the shortcut. A tap
 opens Accessibility settings with this service's row highlighted (`:settings:fragment_args_key` set to the
 flattened component). The direct `android.settings.ACCESSIBILITY_DETAILS_SETTINGS` threw `SecurityException`
 on the rig, because a privileged permission guards it. The callback is registered in `onServiceConnected`

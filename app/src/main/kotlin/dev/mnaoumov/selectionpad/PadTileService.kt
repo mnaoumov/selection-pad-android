@@ -27,10 +27,30 @@ import android.service.quicksettings.TileService
  */
 class PadTileService : TileService() {
 
+  /*
+   * Whether the tile is in the panel is known only here, so the launcher's switch reads what these
+   * record. SystemUI binds a tile to listen only while it is in the panel, which also covers a tile
+   * added before this tracking existed.
+   */
+  override fun onTileAdded() {
+    super.onTileAdded()
+    Diag.log("tile: added to the panel")
+    settings().tileInPanel = true
+  }
+
+  override fun onTileRemoved() {
+    super.onTileRemoved()
+    Diag.log("tile: removed from the panel")
+    settings().tileInPanel = false
+  }
+
   override fun onStartListening() {
     super.onStartListening()
+    settings().tileInPanel = true
     update()
   }
+
+  private fun settings() = PadSettings(getSharedPreferences(PadSettings.FILE, MODE_PRIVATE))
 
   override fun onClick() {
     super.onClick()
@@ -76,12 +96,16 @@ class PadTileService : TileService() {
     }
 
     /**
-     * Whether the tile's component is enabled. It is from install; the launcher's switch disables
-     * it, and SystemUI then drops the tile from the panel.
+     * Whether the tile's component is enabled. It is from install. Turning the launcher's switch off
+     * disables it, which is the only way an app can take its tile out of the panel; turning the
+     * switch on enables it again before asking SystemUI to add the tile.
      */
     fun isEnabled(context: Context): Boolean =
       context.packageManager.getComponentEnabledSetting(component(context)) !=
         PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+
+    /** What the launcher's switch shows: the component enabled, and SystemUI's last word that the tile is in the panel. */
+    fun inPanel(context: Context, settings: PadSettings): Boolean = isEnabled(context) && settings.tileInPanel
 
     fun setEnabled(context: Context, enabled: Boolean) {
       val state = if (enabled) PackageManager.COMPONENT_ENABLED_STATE_DEFAULT else PackageManager.COMPONENT_ENABLED_STATE_DISABLED

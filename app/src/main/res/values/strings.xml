@@ -22,13 +22,12 @@
     <string name="tile_on">On</string>
     <string name="tile_off">Off</string>
     <string name="tile_service_off">Tap to set up</string>
-    <string name="tile_add">Add the pad to Quick Settings</string>
     <string name="tile_added">The Selection Pad tile is in Quick Settings.</string>
+    <string name="tile_added_at_end">The Selection Pad tile is added at the end of Quick Settings, on its last page. To move it, swipe down twice, tap the pencil and drag it.</string>
+    <string name="tile_removed">The Selection Pad tile is out of Quick Settings.</string>
     <string name="tile_add_failed">Add it by hand: swipe down twice, tap the pencil, and drag “Selection Pad” into the panel.</string>
-    <string name="tile_switch_on">Quick Settings tile: on</string>
-    <string name="tile_switch_off">Quick Settings tile: off</string>
-    <string name="button_switch_on">Accessibility button: on — tap to change</string>
-    <string name="button_switch_off">Accessibility button: off — tap to turn on</string>
+    <string name="tile_switch">Quick Settings tile</string>
+    <string name="button_switch">Accessibility button</string>
     <string name="button_hint_off">Android shows its floating accessibility button only after you pick Selection Pad\'s shortcut yourself: tap above, then Selection Pad, then its shortcut, and choose the accessibility button.</string>
     <string name="button_hint_on">Selection Pad has an accessibility shortcut, so the button shows and toggles the pad. To remove it, tap above, then Selection Pad, and turn its shortcut off.</string>
     <string name="button_pick_shortcut">Tap Selection Pad, then its shortcut, and choose the accessibility button.</string>
@@ -39,8 +38,7 @@
     <string name="notification_shown">Pad shown</string>
     <string name="notification_hidden">Pad hidden</string>
     <string name="notification_close">Close the pad</string>
-    <string name="notification_switch_on">Notification: on</string>
-    <string name="notification_switch_off">Notification: off</string>
+    <string name="notification_switch">Notification</string>
     <string name="notification_hint_off">Turn it on to show or close the pad from the notification list. Android asks you to allow notifications first; that is the only permission the app ever asks for, and the notification never leaves the phone.</string>
     <string name="notification_hint_denied">Notifications are not allowed for Selection Pad, so the switch stays off. To allow them, open Settings → Apps → Selection Pad → Notifications. Tapping the switch asks again, or opens that page once Android stops asking.</string>
     <string name="notification_hint_blocked">The switch is on, but notifications are blocked for Selection Pad. Allow them in Settings → Apps → Selection Pad → Notifications, or tap the switch to turn it off.</string>
