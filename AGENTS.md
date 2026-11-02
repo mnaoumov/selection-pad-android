@@ -4127,7 +4127,7 @@ which installs on every attached device, emulators included. The serial is `-Pse
 the adb on `PATH` before the SDK's: on 2026-10-30 the SDK's 37.0.0 restarted the server that the
 PATH's 37.0.1 had started, and the phone was gone from `adb devices` for minutes after it. Measured
 on the rig the same day with `-Pserial=emulator-5570`: the install and the enable, a second run that
-rebound the service, and the refusal with only an emulator attached. It has not yet run on the phone.
+rebound the service, and the refusal with only an emulator attached. On the OnePlus 15 on 2026-11-02, the debug build of `3ff57a4` installed and the service rebound with Bitwarden preserved. Its saved hidden state was respected; the floating accessibility button then showed the pad. A second consecutive phone-task run has not been measured.
 
 `scripts\pad.ps1` is the by-hand switch. It **edits the enabled-services list in place** rather than
 saving and restoring it, so anything else you rely on (a password manager's autofill service) is
@@ -4350,6 +4350,10 @@ the first set. The rig also still has the pre-rename `dev.mnaoumov.asc` installe
 label. Its own static flag and button target showed a second pad and a second row, so its service was taken
 out of the enabled list for the measurement and put back afterwards. The earlier note that `settings put` of
 the targets was not enough held for the flag-less build. With the flag, `settings put` alone showed the button.
+
+**The phone confirms the button and the persisted closed state (2026-11-02, OnePlus 15, Android 17 / SDK 37.0, debug 0.1 from `3ff57a4`).** `.\gradlew.bat phone --max-workers=1 --no-parallel` installed the build and rebound the service, preserving Bitwarden in the enabled-services list. `dumpsys accessibility` read `requestA11yBtn=true`. Picking "Accessibility button" once on Settings' Selection Pad shortcut page wrote the service component into `accessibility_button_targets`. With that target set, `FloatingMenu` appeared at x 1104..1272, y 1413..1581. Taps at (1188, 1497) showed and closed the pad, logging `accessibility button: showing the pad` and `accessibility button: closing the pad`; screenshots and `padVisible=true|false` agreed. After closing it, `run-as dev.mnaoumov.selectionpad kill -9 18843` caused Android to restart the service as PID 20487 within 3 s. It logged `service connected (pad was hidden, DOCKED, locked=false)`, and the screenshot showed no pad. Two more button taps showed and closed it again. Restoring the originally empty button targets removed `FloatingMenu`; the launcher logged `not assigned`, the pad stayed closed, and both services stayed enabled.
+
+**Do not use `uiautomator dump` between assigning this shortcut and tapping it on the phone.** The dump temporarily unbound the service, as described below, and this run also found the shortcut target empty afterwards. The documented `settings put secure accessibility_button_targets <component>` fallback restored the floating button without another dump. Use screenshots and `dumpsys window` for that measurement. Also, this phone logged `accessibility button available=false` on connection even with a working floating button after restart; the observed clicks and callback logs, rather than that initial availability value, establish that the shortcut works.
 
 **The pad hides while the phone is locked, and comes back at unlock only if the user had it showing
 (owner, 2026-10-30).** An accessibility overlay draws over the keyguard, and on the OnePlus 15 the pad
