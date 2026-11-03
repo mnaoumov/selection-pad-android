@@ -4229,9 +4229,14 @@ stored with the rest (`PadSettings.dockEdge`, `minimised`) and survived an `inst
 geometry is `PadPlacement`, unit-tested. Three things were measured on the `handset` profile on
 2026-10-30:
 
-- **A docked pad at the top is offset by the status bar**, as the bottom one is by the navigation bar.
-  With y 0 its header sat at y 16, under the 84 px bar. With the offset it starts at y 84 and the
-  `▼ pad` handle at (964, 84).
+- **A docked pad at the top clears the status bar**, as the bottom one clears the navigation bar.
+  In the original rig measurement, y 0 put its header at y 16, under the 84 px bar; the explicit
+  offset put its window at y 84 and the `▼ pad` handle at (964, 84). On the OnePlus 15 on
+  2026-11-02, WindowManager also fitted the window below the 141 px bar, so that same explicit
+  y 141 put both pad and handle at y 282. Docked windows now request `FLAG_LAYOUT_IN_SCREEN`,
+  `setFitInsetsTypes(0)` and `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS`: the status/cutout and navigation
+  offsets are applied once, by the pad, from the physical screen edges. This applies to the full
+  pad and minimised handle. The revised placement still needs device verification.
 - **The header buttons are only as wide as their captions, but at least 48 dp.** Four `Button`s at
   their default 88 dp minimum took 308 px each, so the status line was a 40 px column, its text wrapped
   a letter a line, and the pad grew to half the screen.
@@ -4242,7 +4247,9 @@ geometry is `PadPlacement`, unit-tested. Three things were measured on the `hand
 The launcher screen keeps its 240 dp clearance at the edge the docked pad is on: with the pad at the
 top, `disclosure fit` read `first line at y 1020` (84 + 96 + 840). Auto-dodge, where the pad moves by
 itself when the selection is under it, was considered and not built: it moves the pad from under the
-user's finger unasked. The phone has not run any of this yet.
+user's finger unasked. The phone's 2026-11-02 pass confirmed the header, minimise/restore,
+floating handle and restart persistence, and found the doubled top inset above. Bottom-handle
+tap-through and a character step with the pad at the top remain unverified.
 
 **The header's `⚙ app` opens the launcher screen, where the settings are (owner, 2026-10-31).** Until then
 that screen was reachable only from the launcher icon. The service starts `MainActivity` with

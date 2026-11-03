@@ -260,7 +260,7 @@ class Pad(
         /*
          * Sit ABOVE the navigation bar, not under it.
          *
-         * An accessibility overlay is laid out in raw screen coordinates, so a window docked to
+         * This window explicitly uses raw screen coordinates (see below), so a window docked to
          * `Gravity.BOTTOM` reaches the physical bottom edge and the system draws the navigation bar
          * on top of it. Measured on the rig at 720x1520: the gesture pill lay across the second row
          * of buttons. The offset is read from `WindowMetrics` rather than from an
@@ -287,9 +287,17 @@ class Pad(
     // touches outside it still reach that app.
     flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
       WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-    // A floating pad's x/y are clamped against the screen (clampToScreen), so they have to BE screen
-    // pixels; without this flag they are measured inside the content area, a status bar lower.
-    if (placement.atFloatingPosition) flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+    // Floating coordinates are clamped against the screen; docked offsets are measured from its
+    // edges. Both therefore need screen coordinates rather than a content-area origin.
+    flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+    if (!placement.atFloatingPosition) {
+      // WindowManager otherwise adds the status-bar inset on the OnePlus 15, while the rig
+      // starts at the screen edge. With our explicit y offset that made the phone pay twice:
+      // 141 px of system fitting + 141 px here. Own the fit, including the cutout, so both the
+      // full pad and its minimised handle clear each bar exactly once on either device.
+      setFitInsetsTypes(0)
+      layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+    }
   }
 
   /**
