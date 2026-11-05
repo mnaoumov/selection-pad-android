@@ -30,6 +30,33 @@ class PadNotificationTest {
   }
 
   @Test
+  fun theBodyTogglesThePadWhileItRuns() {
+    for (shown in listOf(true, false)) {
+      val wiring = PadNotification.wiring(shown)
+      assertEquals(PadNotification.Target.TOGGLE, wiring.body)
+      assertEquals(PadNotification.Target.TOGGLE, wiring.buttons[0].target)
+      assertEquals(
+        PadNotification.Button(R.string.notification_settings, PadNotification.Target.OPEN_APP),
+        wiring.buttons[1],
+      )
+      assertEquals(2, wiring.buttons.size)
+    }
+    assertEquals(R.string.notification_close, PadNotification.wiring(true).buttons[0].label)
+    assertEquals(R.string.show_pad, PadNotification.wiring(false).buttons[0].label)
+  }
+
+  @Test
+  fun everyTapLeadsToHelpWhileTheServiceIsNotRunning() {
+    assertEquals(
+      PadNotification.Wiring(
+        PadNotification.Target.OPEN_APP,
+        listOf(PadNotification.Button(R.string.notification_what_to_do, PadNotification.Target.OPEN_APP)),
+      ),
+      PadNotification.wiring(null),
+    )
+  }
+
+  @Test
   fun saysNotRunningWhileTheServiceIsEnabledButNotRunning() {
     assertEquals(PadNotification.Content(padShown = null), PadNotification.content(on = true, allowed = true, wanted = null, enabled = true))
   }

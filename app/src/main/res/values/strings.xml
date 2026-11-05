@@ -42,6 +42,7 @@
     <string name="notification_close">Close the pad</string>
     <string name="notification_not_running">Not running — turn it off and on in Accessibility settings</string>
     <string name="notification_what_to_do">What to do</string>
+    <string name="notification_settings">Settings</string>
     <string name="notification_switch">Notification</string>
     <string name="notification_hint_off">Turn it on to show or close the pad from the notification list. Android asks you to allow notifications first; that is the only permission the app ever asks for, and the notification never leaves the phone.</string>
     <string name="notification_hint_denied">Notifications are not allowed for Selection Pad, so the switch stays off. To allow them, open Settings → Apps → Selection Pad → Notifications. Tapping the switch asks again, or opens that page once Android stops asking.</string>

@@ -49,6 +49,32 @@ object PadNotification {
     else -> null
   }
 
+  /** Where a tap sends the user: the toggle broadcast, or the launcher screen. */
+  enum class Target { TOGGLE, OPEN_APP }
+
+  /** One button: its label and where it goes. */
+  data class Button(val label: Int, val target: Target)
+
+  /**
+   * Where the body tap and the buttons go (owner's phone test, 2026-11-04: a tap on the body opened
+   * the app, while it should just show or close the pad). While the service runs, the body toggles
+   * the pad through the same broadcast as the first button, and a second button opens the launcher
+   * screen, which is the way into the settings. While it is not running nothing can toggle, so the
+   * body and the one button both open the launcher screen, which says how to get it running again.
+   */
+  data class Wiring(val body: Target, val buttons: List<Button>)
+
+  fun wiring(padShown: Boolean?): Wiring = when (padShown) {
+    null -> Wiring(Target.OPEN_APP, listOf(Button(R.string.notification_what_to_do, Target.OPEN_APP)))
+    else -> Wiring(
+      Target.TOGGLE,
+      listOf(
+        Button(if (padShown) R.string.notification_close else R.string.show_pad, Target.TOGGLE),
+        Button(R.string.notification_settings, Target.OPEN_APP),
+      ),
+    )
+  }
+
   /** Posts, updates or cancels the notification to match the switch and the pad. */
   fun refresh(context: Context) {
     val manager = context.getSystemService(NotificationManager::class.java)
@@ -83,7 +109,12 @@ object PadNotification {
       PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
     val icon = Icon.createWithResource(context, R.drawable.ic_tile)
-    val notification = Notification.Builder(context, CHANNEL)
+    val wiring = wiring(content.padShown)
+    fun intentFor(target: Target) = when (target) {
+      Target.TOGGLE -> toggle
+      Target.OPEN_APP -> openApp
+    }
+    val builder = Notification.Builder(context, CHANNEL)
       .setSmallIcon(icon)
       .setContentTitle(context.getString(R.string.app_name))
       .setContentText(
@@ -95,28 +126,16 @@ object PadNotification {
           }
         )
       )
-      .setContentIntent(openApp)
-      .addAction(
-        Notification.Action.Builder(
-          icon,
-          context.getString(
-            when (content.padShown) {
-              true -> R.string.notification_close
-              false -> R.string.show_pad
-              null -> R.string.notification_what_to_do
-            }
-          ),
-          // Not running, nothing can toggle; the launcher screen says how to get it running again.
-          if (content.padShown == null) openApp else toggle,
-        ).build()
-      )
+      .setContentIntent(intentFor(wiring.body))
       .setOngoing(true)
       .setOnlyAlertOnce(true)
       .setShowWhen(false)
       .setCategory(Notification.CATEGORY_STATUS)
       .setVisibility(Notification.VISIBILITY_SECRET)
-      .build()
-    manager.notify(ID, notification)
+    for (button in wiring.buttons) {
+      builder.addAction(Notification.Action.Builder(icon, context.getString(button.label), intentFor(button.target)).build())
+    }
+    manager.notify(ID, builder.build())
     Diag.log("notification: posted (${when (content.padShown) { true -> "pad shown"; false -> "pad hidden"; null -> "service not running" }})")
   }
 
@@ -126,7 +145,7 @@ object PadNotification {
 }
 
 /**
- * The notification's button. Not exported: only the notification's own `PendingIntent`, which
+ * The notification's body tap and its toggle button. Not exported: only the notification's own `PendingIntent`, which
  * names this class, can reach it.
  */
 class PadNotificationReceiver : BroadcastReceiver() {
