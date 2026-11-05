@@ -4312,8 +4312,14 @@ the tap asks, and a refusal leaves the switch off with a hint (`PadSettings.noti
 After a second refusal Android refuses without a dialog, so from then on the tap opens the app's
 notification settings (`shouldShowRequestPermissionRationale` false with the flag set). The
 notification is low importance, silent, ongoing and `VISIBILITY_SECRET`, because the pad never shows
-on the lock screen. It reads `Pad shown|hidden` and carries one action, `Close the pad|Show the pad`,
-through an unexported `PadNotificationReceiver` that calls `togglePad()`, and the body opens the app.
+on the lock screen. It reads `Pad shown|hidden`. A tap on its body, and its first action,
+`Close the pad|Show the pad`, both go through an unexported `PadNotificationReceiver` that calls
+`togglePad()`. Its second action, `Settings`, opens the app. The body used to open the app, and the owner's
+phone test (2026-11-04) found that wrong: a tap should only show or close the pad. The wiring is
+`PadNotification.wiring`, unit-tested. Measured 2026-11-04 on the rig: a tap on the body text logged
+`notification: closed the pad`, then `showed the pad`. The app did not come to the front, and the text
+turned `Pad hidden`, then `Pad shown`. `Settings` brought `MainActivity` to the front. While the service is not
+running (`uiautomator events`), the body and `What to do` were both `startActivity` intents.
 It shows the same wish as the tile (`padShowing()`), and every place that refreshes the tile now
 calls `refreshToggles`, which refreshes both. It is posted only while the service runs and the
 switch is on and notifications are allowed (`PadNotification.content`), so an unbind cancels it.
