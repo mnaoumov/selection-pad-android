@@ -179,7 +179,7 @@ class MainActivity : Activity() {
 
   /**
    * The other ways to show or hide the pad, each a real switch whose checked state is the real state
-   * (owner, 2026-10-31): the Quick Settings tile, the notification and the accessibility button.
+   * (owner, 2026-10-31): the Quick Settings tile and the notification.
    *
    * **Only the user can put a tile in the panel**, so the tile's switch is ONE control over two
    * mechanisms: on asks SystemUI to add the tile ([offerTile]), off disables the tile's component,
@@ -200,32 +200,35 @@ class MainActivity : Activity() {
       addView(tileSwitch)
       addView(notificationSwitch)
       addView(notificationHint)
-      addView(buttonSwitch)
-      addView(buttonHint)
+      addView(buttonWarning)
     }
   }
 
   /**
-   * The accessibility button's state, read from the system, and the way to change it. The app has
-   * no switch of its own to offer: the button shows exactly when the user has given the service a
-   * shortcut ([ButtonShortcut]), so this opens the page where that is done, either way.
+   * Shown only while the user has given the service an accessibility shortcut ([ButtonShortcut]).
+   * The service does not request the accessibility button (see accessibility_service_config.xml),
+   * so such a shortcut turns the whole service off and on rather than the pad, and a sideloaded
+   * build may not be able to turn it back on. The row says so and opens the page to remove it.
    */
-  private val buttonSwitch by lazy {
-    toggle(R.string.button_switch).apply {
-      setOnClickListener {
-        // The tap has flipped the switch; only the user's shortcut can, so put it back until it does.
-        showToggles()
-        val message = if (buttonAssigned()) R.string.button_remove_shortcut else R.string.button_pick_shortcut
-        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
-        openShortcutSettings()
-      }
-    }
-  }
-
-  private val buttonHint by lazy {
-    TextView(this).apply {
-      textSize = 15f
-      setPadding(0, PADDING / 2, 0, 0)
+  private val buttonWarning: LinearLayout by lazy {
+    LinearLayout(this).apply {
+      orientation = LinearLayout.VERTICAL
+      setPadding(0, PADDING, 0, 0)
+      addView(
+        TextView(this@MainActivity).apply {
+          text = getString(R.string.button_warning)
+          textSize = 15f
+        }
+      )
+      addView(
+        Button(this@MainActivity).apply {
+          text = getString(R.string.button_warning_open)
+          setOnClickListener {
+            Toast.makeText(this@MainActivity, R.string.button_remove_shortcut, Toast.LENGTH_LONG).show()
+            openShortcutSettings()
+          }
+        }
+      )
     }
   }
 
@@ -359,9 +362,8 @@ class MainActivity : Activity() {
     showNotificationSwitch()
     tileSwitch.isChecked = PadTileService.inPanel(this, settings)
     val assigned = buttonAssigned()
-    buttonSwitch.isChecked = assigned
-    buttonHint.text = getString(if (assigned) R.string.button_hint_on else R.string.button_hint_off)
-    Diag.log("button: launcher reads the shortcut as ${if (assigned) "assigned" else "not assigned"}")
+    buttonWarning.visibility = if (assigned) View.VISIBLE else View.GONE
+    Diag.log("button: launcher reads the shortcut as ${if (assigned) "assigned — warning shown" else "not assigned"}")
   }
 
   /**

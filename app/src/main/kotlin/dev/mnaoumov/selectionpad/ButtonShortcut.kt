@@ -3,17 +3,15 @@ package dev.mnaoumov.selectionpad
 import android.content.ComponentName
 
 /**
- * Whether the user has given this service an accessibility shortcut, which is the only thing that
- * shows the system's accessibility button.
+ * Whether the user has given this service an accessibility shortcut (the floating button, the
+ * gesture or the volume keys).
  *
- * **The app cannot turn the button on or off. Only the user's shortcut can.** For a service
- * targeting API 30+, the static config is the only place `FLAG_REQUEST_ACCESSIBILITY_BUTTON` counts
- * (`setServiceInfo` keeps its static value), and the flag decides only what a click does. Measured
- * on a OnePlus 15 on 2026-10-30: the flag was set and `accessibility_button_mode` was 1 (floating),
- * but `accessibility_button_targets` was empty (`dumpsys accessibility`: `button target:{null}`)
- * because a reinstall had cleared it, and no button appeared. Android shows one only once the user
- * picks the shortcut in Settings → Accessibility → Selection Pad, and no app can write that setting.
- * So the launcher reads the assignment back rather than keeping a switch of its own.
+ * The service does not request the accessibility button: with `FLAG_REQUEST_ACCESSIBILITY_BUTTON`
+ * in its static config, Android ties the service's enabled state to its shortcut, so the floating
+ * button was forced on and removing it switched the service off (see
+ * `accessibility_service_config.xml`). Without the flag a shortcut turns the whole service off and
+ * on, which a sideloaded build may not get back under ECM. So the launcher reads the assignment back
+ * and, when there is one, warns and offers the page to remove it. No app can write that setting.
  */
 object ButtonShortcut {
   /**
