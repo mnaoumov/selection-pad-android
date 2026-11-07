@@ -1,6 +1,5 @@
 package dev.mnaoumov.selectionpad
 
-import android.accessibilityservice.AccessibilityButtonController
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
@@ -195,26 +194,12 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     applyLockGate()
 
     /*
-     * A click on the system's accessibility button (or its gesture or volume-key shortcut) toggles
-     * the pad. The static config requests the button, because on API 30+ only the static value
-     * counts; the button is still off by default, since nothing shows until the user picks the
-     * service's shortcut in Accessibility settings ([ButtonShortcut]).
+     * No accessibility-button callback: the static config must not request the button (see the
+     * comment in accessibility_service_config.xml), and without that request a click never reaches
+     * the service. A shortcut the user assigns would turn the whole service on and off instead,
+     * which the launcher warns about ([ButtonShortcut]).
      */
-    accessibilityButtonController.registerAccessibilityButtonCallback(accessibilityButtonCallback)
-    Diag.log("accessibility button available=${accessibilityButtonController.isAccessibilityButtonAvailable}")
     refreshToggles(this)
-  }
-
-  private val accessibilityButtonCallback = object : AccessibilityButtonController.AccessibilityButtonCallback() {
-    override fun onClicked(controller: AccessibilityButtonController) {
-      val wanted = padWanted() ?: return
-      Diag.log("accessibility button: ${if (wanted) "closing" else "showing"} the pad")
-      if (wanted) closePad() else showPad()
-    }
-
-    override fun onAvailabilityChanged(controller: AccessibilityButtonController, available: Boolean) {
-      Diag.log("accessibility button available=$available")
-    }
   }
 
   /** What the pad's own `✕` does: the service stays connected, the overlay goes. */
@@ -310,7 +295,6 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     Diag.record(this, "service: unbound (${if (connected === this) "the connected instance" else "an instance that was not connected"})")
     if (connected === this) connected = null
     runCatching { unregisterReceiver(lockReceiver) }
-    accessibilityButtonController.unregisterAccessibilityButtonCallback(accessibilityButtonCallback)
     // An overlay that outlives its service cannot be told to go away.
     mask?.hide()
     mask = null
