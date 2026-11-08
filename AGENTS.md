@@ -4127,7 +4127,7 @@ which installs on every attached device, emulators included. The serial is `-Pse
 the adb on `PATH` before the SDK's: on 2026-10-30 the SDK's 37.0.0 restarted the server that the
 PATH's 37.0.1 had started, and the phone was gone from `adb devices` for minutes after it. Measured
 on the rig the same day with `-Pserial=emulator-5570`: the install and the enable, a second run that
-rebound the service, and the refusal with only an emulator attached. On the OnePlus 15 on 2026-11-02, the debug build of `3ff57a4` installed and the service rebound with Bitwarden preserved. Its saved hidden state was respected; the floating accessibility button then showed the pad. A second consecutive phone-task run has not been measured.
+rebound the service, and the refusal with only an emulator attached. On the OnePlus 15 on 2026-11-02, the debug build of `3ff57a4` installed and the service rebound with Bitwarden preserved. Its saved hidden state was respected; the floating accessibility button then showed the pad. On 2026-11-07 (the debug build of `ca3989c`) two consecutive runs were measured. The first took 12.7 s and kept the pad hidden, as saved. The second, run with the pad showing, took 3.6 s: the new process logged `service connected (pad was visible, DOCKED, locked=false)` and `lock: showing the pad`, so the pad came back after the rebind. Bitwarden stayed in `enabled_accessibility_services` after both.
 
 `scripts\pad.ps1` is the by-hand switch. It **edits the enabled-services list in place** rather than
 saving and restoring it, so anything else you rely on (a password manager's autofill service) is
@@ -4401,6 +4401,15 @@ the screenshot showed the blank block. The new build covered the toolbar with th
 it logged `mask -> null (the pad is closed)`, and a new selection logged no mask and left the toolbar in
 view. That held after a restart with the pad closed too. **Show the pad** brought the mask back on the
 next selection.
+
+**The phone confirms all four checks (2026-11-07, OnePlus 15, the debug build of `ca3989c`, Chrome on
+`https://example.com`, `menuMasked=true`).** With the pad open, selecting `avoid` logged
+`mask -> Rect(158, 1047 - 1216, 1201)`, and the screenshot showed Chrome's toolbar covered. `✕` logged
+`mask -> null (the pad is closed)`, and a long-press on `testing` after it logged no mask, with Chrome's
+Copy / Select all / Web search toolbar in plain view and no gray block. After `run-as ... kill -9` with
+the pad closed, the new process logged `service connected (pad was hidden, DOCKED, locked=false)`, and a
+selection of `on` logged no mask either. **Show the pad** then brought it back: selecting `needing` logged
+`mask -> Rect(158, 956 - 1216, 1110)`, and the toolbar was covered again.
 
 **The ROM restarts the service behind the user's back, so the pad's settings are stored, not held
 in memory.** On the OnePlus 15 (2026-10-16) the pad kept reappearing with nobody asking for it.
