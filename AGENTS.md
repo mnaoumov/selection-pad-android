@@ -4313,6 +4313,24 @@ answered 1 (already added), then 2 (added) through SystemUI's dialog after `cmd 
 The switch put `PadTileService` under `disabledComponents` and the tile left the panel. Drive it with
 `adb shell cmd statusbar add-tile|click-tile|remove-tile dev.mnaoumov.selectionpad/.PadTileService`.
 
+**The phone confirms it (2026-11-09, OnePlus 15, the debug build of `c58d36f`).** The tile was in the
+panel from an earlier pass, in the last slot of the second page. OxygenOS does not list it in
+`sysui_qs_tiles`, so look at the panel, not at that setting. The app logged nothing until a fresh process
+was started (the logd flow-control gotcha under *The test rig*):
+
+| step | result |
+|---|---|
+| a tap on the tile, pad hidden, then again | `tile: showed the pad`, the tile drawn active; then `tile: closed the pad`, the tile inactive |
+| the tile shows the pad, the pad's `✕` closes it, the panel reopened | the tile inactive (`padVisible=false`) |
+| **Show the pad** on the launcher screen, the panel reopened | the tile active |
+| `pad.ps1 off`, then a tap on the tile | `tile: the service is off — opening the launcher screen`, and `MainActivity` came to the front; `pad.ps1 on` bound it again |
+| the **Quick Settings tile** switch off | `tile: component disabled`, `PadTileService` under `disabledComponents`, the tile gone from the panel; the rebind it causes left the service bound |
+| the switch on again | `tile: component enabled`, then SystemUI's "Selection Pad wants to add the following tile" dialog; `Add tile` answered `tile: add request answered 2`, the switch read on and the tile was back in the panel's last slot, drawn active |
+
+**With the pad docked at the bottom, it covers that dialog's buttons.** The accessibility overlay draws
+above SystemUI's dialog, and `Don't add tile` and `Add tile` sat under the pad, so neither could be
+tapped until the pad's `–` minimised it. This is tracked as its own defect.
+
 **An ongoing notification shows or closes the pad from the notification list, and it is OFF by
 default (owner, 2026-10-30), because it is the app's only permission (`PadNotification`).** The
 manifest declares `POST_NOTIFICATIONS`, so Play lists it, but nothing asks for it until the user
