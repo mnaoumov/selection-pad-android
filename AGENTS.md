@@ -4170,6 +4170,16 @@ scrolled to the end, in a 2772 px window with a bottom bar of 84 (clear=true)` o
 profile. Read that line rather than a screenshot. The status-bar icons follow the theme's day or night
 mode, because the bar now sits on the window's own background.
 
+**The phone confirms it (2026-11-09, OnePlus 15, the debug build of `3ab6340`).** The launcher logged
+`disclosure fit: first line at y 237 against a top bar of 141 (clear=true), last view at y 1876
+scrolled to the end, in a 2772 px window with a bottom bar of 56 (clear=true)`. The screenshot at the
+top showed "Before you turn this on" as the first thing below the status bar, with no app bar. Mid-scroll,
+the text was cut off at the status bar's bottom edge, and none of it was drawn under the bar. At the end,
+the last button (`How to do this on my phone`) ended at about y 1860. The 240 dp kept clear for the docked
+pad left about 860 px of empty background between it and the gesture bar. The app logged nothing until a
+fresh process was started (`pad.ps1 off`, `am force-stop`, `pad.ps1 on`). That is the OxygenOS logd
+flow-control gotcha under *The test rig*.
+
 The pad appears as soon as the service connects. Its buttons take **real injected input** —
 `adb shell input tap <x> <y>` — which is the right way to test them: the service's own
 `dispatchGesture` is a different input path, and O1 was careful about that distinction.
