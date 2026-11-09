@@ -4354,10 +4354,25 @@ back. So the launcher's `Accessibility button` switch is gone. In its place, a w
 `ButtonShortcut.assigned` finds the service in one of the three target keys, with a button that opens
 Accessibility settings with this service's row highlighted (`:settings:fragment_args_key` set to the flattened
 component; the direct `ACCESSIBILITY_DETAILS_SETTINGS` threw `SecurityException` on the rig). The launcher
-logs `button: launcher reads the shortcut as assigned — warning shown|not assigned`. **On the phone, the
-shortcut assigned during the 2026-11-04 checks has to be removed in Settings → Accessibility → Selection Pad
-after this build is installed.** Whether a phone that kept the shortcut across the update still shows the
-floating button, and what a click on it then does, has not been measured.
+logs `button: launcher reads the shortcut as assigned — warning shown|not assigned`.
+
+**The phone confirms it (2026-11-09, OnePlus 15, the debug build of `af8735e`).** `.\gradlew phone` installed
+it and rebound the service, and `dumpsys accessibility` read `requestA11yBtn=false`. The 2026-11-04 shortcut
+had already been removed by then (`accessibility_button_targets` was empty), so it was put back with
+`settings put secure accessibility_button_targets dev.mnaoumov.selectionpad/dev.mnaoumov.selectionpad.AscAccessibilityService`
+to stand in for a phone that kept it across the update:
+
+| state | result |
+|---|---|
+| no shortcut, after the install | the launcher logged `not assigned` and showed no warning, no floating button on screen, the service enabled and bound |
+| the tile and the notification, no shortcut | the tile went `showed the pad`, then `closed the pad`; a tap on the notification body went `showed the pad` (`Pad shown`), then `closed the pad` (`Pad hidden`), with the app not brought forward |
+| the shortcut put back | the floating button showed at the screen's left edge, and the launcher logged `assigned — warning shown` with the warning and its button above the battery row |
+| a click on that floating button | the service unbound and was destroyed, and OxygenOS took it out of `enabled_accessibility_services` (`removeEnableService`). Only Bitwarden was left, and the notification was cancelled. That is the `INVISIBLE_TOGGLE` coupling above, so a shortcut left in place is a trap |
+| the shortcut removed, then `pad.ps1 on` | the service bound again, no floating button, the launcher logged `not assigned` and hid the warning, and the tile showed and closed the pad |
+| a second `.\gradlew phone` with no shortcut | `requestA11yBtn=false`, no floating button on the home screen, the service still enabled |
+
+The warning's own button, which opens Settings → Accessibility → Selection Pad, was not driven on the phone,
+because the shortcut was removed through `settings` instead.
 
 **The pad hides while the phone is locked, and comes back at unlock only if the user had it showing
 (owner, 2026-10-30).** An accessibility overlay draws over the keyguard, and on the OnePlus 15 the pad
