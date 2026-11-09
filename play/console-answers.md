@@ -65,7 +65,7 @@ no INTERNET permission, which is enforced by the kernel rather than promised.
 | Ads | No ads | there is no ad code |
 | App access | All functionality is available without special access | no login, no account |
 | Content rating | Utility / productivity questionnaire; no violence, no user-generated content, no sharing of location or personal information | it is a text-selection tool |
-| Target audience | 18 and over | not designed for children; avoids the Families policy, which the app would not meet anyway since it does not target them |
+| Target audience | 13-15, 16-17 and 18 and over (13 and over) | the app is a tool anyone old enough to read a web page can use, so excluding teenagers would be untrue. Only an under-13 group puts the whole app under the Families policy, and none is ticked. The Console then says the app must comply whenever a child uses it, which it does by construction: no content, no ads, no data collected, no INTERNET permission |
 | News app | No | |
 | Government app | No | |
 | Financial features | None | |
