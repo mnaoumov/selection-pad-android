@@ -73,6 +73,29 @@ class MainActivity : Activity() {
     )
 
     /*
+     * Play requires the privacy policy to be linked "on your store listing and within your app"
+     * (Console, App content → Privacy policy). It sits with the disclosure because that is the screen
+     * a reviewer reads. A VIEW intent hands the URL to a browser, so the app itself still needs no
+     * INTERNET permission.
+     */
+    column.addView(
+      Button(this).apply {
+        text = getString(R.string.privacy_policy)
+        setOnClickListener {
+          val page = Uri.parse(PRIVACY_POLICY_URL)
+          runCatching { startActivity(Intent(Intent.ACTION_VIEW, page)) }
+            .onFailure {
+              Toast.makeText(
+                this@MainActivity,
+                getString(R.string.privacy_policy_no_browser, PRIVACY_POLICY_URL),
+                Toast.LENGTH_LONG,
+              ).show()
+            }
+        }
+      }
+    )
+
+    /*
      * The way back from the pad's own close button.
      *
      * Closing the pad hides the overlay and leaves the service connected, so putting it back is a
@@ -534,6 +557,10 @@ class MainActivity : Activity() {
 
   private companion object {
     const val PADDING = 48
+
+    /** The policy's page in the public repository, the same URL the Play Console form holds. */
+    const val PRIVACY_POLICY_URL =
+      "https://github.com/mnaoumov/selection-pad-android/blob/main/play/privacy-policy.md"
 
     /** More than the docked pad's height: 152 dp on the rig, three rows of buttons and the padding. */
     const val PAD_CLEARANCE_DP = 240

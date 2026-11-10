@@ -61,7 +61,7 @@ no INTERNET permission, which is enforced by the kernel rather than promised.
 
 | form | answer | why |
 | --- | --- | --- |
-| Privacy policy | URL of `play/privacy-policy.md` in the public repository | required for every app, and for any app using the Accessibility API |
+| Privacy policy | URL of `play/privacy-policy.md` in the public repository | required for every app, and for any app using the Accessibility API. The form also asks for the link "within your app": the launcher screen's **Privacy policy** button opens the same URL with a VIEW intent, so no INTERNET permission is needed |
 | Ads | No ads | there is no ad code |
 | App access | All functionality is available without special access | no login, no account |
 | Content rating | Utility / productivity questionnaire; no violence, no user-generated content, no sharing of location or personal information | it is a text-selection tool |

@@ -4158,6 +4158,8 @@ The launcher entry (**Selection Pad**) shows the Play-required disclosure, which
 agree, which opens Accessibility settings, or **No thanks**, which closes the screen and leaves the
 service off (both checked on the rig 2026-09-23). On this device the settings link is informational, since the toggle will not be there.
 
+**A `Privacy policy` button sits under those two (2026-11-09)**, because Play's privacy-policy form says the policy must be linked "on your store listing and within your app". It opens `play/privacy-policy.md` on GitHub with a VIEW intent, so the app still asks for no INTERNET permission (`aapt2 dump permissions` on the debug build listed only `POST_NOTIFICATIONS`). Where no app can open links, a toast shows the URL. The tap has not been driven on the rig or the phone yet: the rig guest wedged under a fully loaded host that evening.
+
 **Every screen is edge to edge, because the app targets API 36, so each one pads itself clear of the
 bars (`SystemBars`).** On the OnePlus 15 (2026-10-30) the disclosure opened with its title and first
 lines behind the framework action bar. That bar no longer pushes content down, and nothing scrolled the
