@@ -13,6 +13,8 @@
     <string name="disclosure_agree">I understand — open Accessibility settings</string>
     <string name="disclosure_decline">No thanks</string>
     <string name="disclosure_declined">Selection Pad stays off until you agree.</string>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="privacy_policy_no_browser">No app here can open links. The privacy policy is at %1$s</string>
     <string name="consent_recorded">Thanks. Enable “Selection Pad” in the list that opens.</string>
 
     <string name="show_pad">Show the pad</string>
