@@ -36,6 +36,14 @@ class LockGateTest {
   }
 
   @Test
+  fun `a pad stepped aside for a system dialog hides, and returns only when the user still wants it`() {
+    assertEquals(Action.HIDE, LockGate.action(padVisible = true, locked = false, padShowing = true, aside = true))
+    assertEquals(Action.NONE, LockGate.action(padVisible = true, locked = false, padShowing = false, aside = true))
+    assertEquals(Action.SHOW, LockGate.action(padVisible = true, locked = false, padShowing = false, aside = false))
+    assertEquals(Action.NONE, LockGate.action(padVisible = false, locked = false, padShowing = false, aside = false))
+  }
+
+  @Test
   fun theScreenOffOrTheKeyguardCountsAsLocked() {
     assertTrue(LockGate.locked(interactive = false, keyguardLocked = false))
     assertTrue(LockGate.locked(interactive = true, keyguardLocked = true))

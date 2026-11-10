@@ -398,12 +398,16 @@ class MainActivity : Activity() {
    */
   private fun offerTile() {
     val statusBar = getSystemService(android.app.StatusBarManager::class.java)
+    // The pad's overlay draws above SystemUI's dialog and hid its buttons on the phone, so it steps
+    // aside until the dialog is answered. An already-added tile answers at once and it comes back.
+    AscAccessibilityService.stepAside("the add-tile dialog")
     statusBar.requestAddTileService(
       PadTileService.component(this),
       getString(R.string.app_name),
       android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_tile),
       mainExecutor,
     ) { result ->
+      AscAccessibilityService.comeBack()
       Diag.log("tile: add request answered $result")
       val message = when (result) {
         android.app.StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> R.string.tile_added_at_end

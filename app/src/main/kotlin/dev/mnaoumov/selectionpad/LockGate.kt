@@ -14,9 +14,16 @@ internal object LockGate {
 
   enum class Action { SHOW, HIDE, NONE }
 
-  /** What to do to a pad that [padShowing] now, so that it shows exactly when [padVisible] and not [locked]. */
-  fun action(padVisible: Boolean, locked: Boolean, padShowing: Boolean): Action {
-    val wanted = padVisible && !locked
+  /**
+   * What to do to a pad that [padShowing] now, so that it shows exactly when [padVisible], not
+   * [locked] and not [aside].
+   *
+   * [aside] is a moment when a system dialog the app itself asked for must not be covered: the
+   * accessibility overlay draws above SystemUI's own dialogs, and a docked pad hid the "Add tile"
+   * dialog's buttons on the phone (2026-11-09). Like the lock, it never touches [padVisible].
+   */
+  fun action(padVisible: Boolean, locked: Boolean, padShowing: Boolean, aside: Boolean = false): Action {
+    val wanted = padVisible && !locked && !aside
     return when {
       wanted && !padShowing -> Action.SHOW
       !wanted && padShowing -> Action.HIDE

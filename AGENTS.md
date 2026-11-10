@@ -4329,9 +4329,22 @@ was started (the logd flow-control gotcha under *The test rig*):
 | the **Quick Settings tile** switch off | `tile: component disabled`, `PadTileService` under `disabledComponents`, the tile gone from the panel; the rebind it causes left the service bound |
 | the switch on again | `tile: component enabled`, then SystemUI's "Selection Pad wants to add the following tile" dialog; `Add tile` answered `tile: add request answered 2`, the switch read on and the tile was back in the panel's last slot, drawn active |
 
-**With the pad docked at the bottom, it covers that dialog's buttons.** The accessibility overlay draws
-above SystemUI's dialog, and `Don't add tile` and `Add tile` sat under the pad, so neither could be
-tapped until the pad's `–` minimised it. This is tracked as its own defect.
+**The pad steps aside while that dialog is up, because it covered the dialog's buttons.** The
+accessibility overlay draws above SystemUI's dialogs. In that phone pass, `Don't add tile` and `Add tile`
+sat under the docked pad, so neither could be tapped until the pad's `–` minimised it. Now `offerTile`
+calls `AscAccessibilityService.stepAside` before `requestAddTileService` and `comeBack` in its result
+callback. `stepAside` hides the window through `LockGate` (`aside`), the same way a lock does. It never
+writes `padVisible`, so a pad the user closed stays closed, and the tile and the notification still show
+the user's wish. SystemUI answers whenever its dialog goes away, whether by either button, Back or a tap
+outside. So the 10 min net (`ASIDE_TIMEOUT_MS`) is only for a SystemUI that never answers. A 2 min net
+fired on the rig with the dialog still up, and that would have put the pad back over it. **Show the pad**
+and the tile end a step-aside at once. Measured 2026-11-10 on the rig, the pad docked at the bottom and
+the tile removed (`cmd statusbar remove-tile`), with the dialog brought up by the launcher's first-open
+offer (`tileOffered` false). The log read `aside: hiding the pad for the add-tile dialog`. 30 s later the
+window list had `ComponentSystemUIDialog` and no pad window, and the screenshot showed both buttons
+clear. `Don't add tile` answered 0, and `Add tile` answered 2 in another run. Each time the log read
+`aside: done with the add-tile dialog`, then `lock: showing the pad`, and the pad was back. The phone has
+not run it yet.
 
 **An ongoing notification shows or closes the pad from the notification list, and it is OFF by
 default (owner, 2026-10-30), because it is the app's only permission (`PadNotification`).** The
