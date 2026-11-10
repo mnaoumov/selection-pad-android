@@ -247,14 +247,14 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
   private fun applyLockGate() {
     val pad = pad ?: return
     val settings = settings ?: return
-    when (LockGate.action(settings.padVisible, locked, pad.isShowing)) {
+    when (LockGate.action(settings.padVisible, locked, pad.isShowing, asideFor != null)) {
       LockGate.Action.SHOW -> {
         Diag.log("lock: showing the pad")
         pad.show()
         refreshMask()
       }
       LockGate.Action.HIDE -> {
-        Diag.log("lock: hiding the pad while the device is locked")
+        Diag.log(if (locked) "lock: hiding the pad while the device is locked" else "aside: hiding the pad for $asideFor")
         repeating = null
         mask?.hide()
         maskedBounds = null
@@ -271,7 +271,28 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
    */
   private fun padWanted(): Boolean? {
     val pad = pad ?: return null
-    return if (locked) settings?.padVisible ?: pad.isShowing else pad.isShowing
+    return if (locked || asideFor != null) settings?.padVisible ?: pad.isShowing else pad.isShowing
+  }
+
+  /**
+   * What the pad is stepping aside for right now, or null. Set while a system dialog the app asked
+   * for is up ([stepAside]), so the overlay, which draws above SystemUI's dialogs, does not cover its
+   * buttons. It never writes [PadSettings.padVisible], so a pad the user closed stays closed after.
+   */
+  private var asideFor: String? = null
+
+  /** The safety net under [stepAside], in case the dialog's answer never arrives. */
+  private val comeBackAnyway = Runnable {
+    Diag.log("aside: no answer after ${ASIDE_TIMEOUT_MS}ms — bringing the pad back")
+    comeBackNow()
+  }
+
+  private fun comeBackNow() {
+    handler.removeCallbacks(comeBackAnyway)
+    if (asideFor == null) return
+    Diag.log("aside: done with $asideFor")
+    asideFor = null
+    applyLockGate()
   }
 
   /**
@@ -295,6 +316,8 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     Diag.record(this, "service: unbound (${if (connected === this) "the connected instance" else "an instance that was not connected"})")
     if (connected === this) connected = null
     runCatching { unregisterReceiver(lockReceiver) }
+    handler.removeCallbacks(comeBackAnyway)
+    asideFor = null
     // An overlay that outlives its service cannot be told to go away.
     mask?.hide()
     mask = null
@@ -1296,6 +1319,9 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       val service = connected ?: return false
       if (service.pad == null) return false
       service.settings?.padVisible = true
+      // The user asking for the pad outranks a dialog it stepped aside for.
+      service.handler.removeCallbacks(service.comeBackAnyway)
+      service.asideFor = null
       // While the device is locked this only records the wish; the unlock shows it ([LockGate]).
       // The mask is off while the pad is closed, so a selection already up gets its cover back there.
       service.applyLockGate()
@@ -1308,6 +1334,35 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
      * tile, which shows the wish rather than the window, so a lock does not flip it off.
      */
     fun padShowing(): Boolean? = connected?.padWanted()
+
+    /**
+     * Takes the pad off screen while a system dialog the app asked for is up, without changing
+     * whether the user wants it, and brings it back at [comeBack] or after [ASIDE_TIMEOUT_MS].
+     *
+     * The accessibility overlay draws above SystemUI's dialogs: on the OnePlus 15 (2026-11-09) the
+     * docked pad covered the "Add tile" dialog's `Don't add tile` and `Add tile`, so the request
+     * could not be answered. Does nothing when the service is not running.
+     */
+    fun stepAside(reason: String) {
+      val service = connected ?: return
+      service.asideFor = reason
+      service.handler.removeCallbacks(service.comeBackAnyway)
+      service.handler.postDelayed(service.comeBackAnyway, ASIDE_TIMEOUT_MS)
+      service.applyLockGate()
+    }
+
+    /** Ends [stepAside]: the pad returns if the user still wants it and the device is unlocked. */
+    fun comeBack() {
+      connected?.comeBackNow()
+    }
+
+    /**
+     * How long [stepAside] waits for its dialog's answer before bringing the pad back regardless.
+     * SystemUI answers whenever its dialog goes, by either button, Back or a tap outside, so this is
+     * only a net under a SystemUI that never answers. It is long because coming back early puts the
+     * pad over a dialog still waiting: on the rig (2026-11-10) a 2 min net fired with it still up.
+     */
+    const val ASIDE_TIMEOUT_MS = 600_000L
 
     /** Whether a connected instance exists in this process ([ServiceStatus]). */
     fun running(): Boolean = connected != null
