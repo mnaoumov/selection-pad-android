@@ -4307,7 +4307,15 @@ the pad still docked. The flag also destroys the debug target, because it lives 
 selection there does not survive the trip. **Chrome clears its own selection when it goes to the background**,
 so after Back the pad says `select some text first`. A fresh long-press then stepped `22 -> 23 -> 22`, 1
 gesture each. The header still fits on the rig's 720 px: `⚙ app` is a 96 px button at x 320, and the status
-line keeps x 16..210. The floating pad's header carries it too. The phone has not run it yet.
+line keeps x 16..210. The floating pad's header carries it too.
+
+**The phone confirms it (2026-11-11, OnePlus 15, the Play internal-test build, `versionCode` 1, Chrome on
+`en.wikipedia.org/wiki/Text_editor`, the old announcement in effect).** The docked header showed `▤ menu on`,
+`⚙ app`, `⇅ to top`, `– min` and `✕` on one row, with `Selection Pad` readable beside them. In 3 runs of 3,
+`⚙ app` pressed over Chrome logged `pad: opening the app`, and `MainActivity` took the focus with no toast,
+so OxygenOS lets the accessibility service start it. Back returned the focus to Chrome, with the pad still
+docked. A fresh long-press on `interactive` then seeded `4..15`, and `→ char` and `← char` went `15 -> 16 -> 15`,
+1 gesture each, 0.56-0.72 s.
 
 **A Quick Settings tile toggles the pad from the notification panel (`PadTileService`).** It is
 active while the pad shows and inactive while it is closed. A tap with the service off opens the
