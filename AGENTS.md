@@ -3949,7 +3949,7 @@ environment, which is how the Obsidian integration harness capped the same flood
 - **The idle watchdog.** Every rig command stamps `build\rig\last-used`. `up` and `go` start one
   hidden `rig.ps1 watchdog` process (pid in `build\rig\watchdog.pid`). It runs `down` once the stamp is
   older than 60 minutes, and exits by itself when the emulator goes. `-IdleMinutes <n>` changes the limit,
-  and `-IdleMinutes 0` starts none. Adb run by hand does not stamp, so a long hand-driven sitting should
+  and `-IdleMinutes 0` switches the idle shutdown off (the watchdog still runs, to hold the emulator lock below). Adb run by hand does not stamp, so a long hand-driven sitting should
   touch the rig now and then (`rig.ps1 status`). Measured with `-IdleMinutes 2`: down after 2.1 min,
   netsimd gone, pid file removed.
 - **An unattended session's emulator goes down when that session ends, not 60 minutes later.** On
@@ -3974,6 +3974,22 @@ environment, which is how the Obsidian integration harness capped the same flood
   because the Obsidian suites' emulators share it. netsimd can outlive its emulator: in the incident,
   qemu restarted it at 11:37 after it was killed, with no `RUST_LOG`. Killing a guest leaves a short-lived
   `emulator -kill <pid> -sleep 20` helper behind, so the helper is not counted as an emulator.
+
+**The rig takes the machine-wide emulator lock before it boots, and refuses to boot while anyone else
+holds it.** Two emulators at once is what wedges a guest, and on 2026-11-09 `asc_test` ran for 22 min
+beside another project's emulator. The lock is the named mutex `Local\mn-task-bulk-android-emulator-in-use`,
+which the bulk task runner gives an item that boots an emulator, and its note
+`F:\tmp\claude\mn-task-bulk\android-emulator-in-use.json` names the holder. A mutex belongs to the
+thread that took it, and `up` exits once the guest is up, so the watchdog takes and holds it, because
+the watchdog lives exactly as long as the emulator. `-IdleMinutes 0` now starts a watchdog that only
+holds the lock. `up` waits for the watchdog's answer in `build\rig\emulator-lock.json` before the boot.
+When another holder has the lock, `up` throws with that holder's item, project, pid and start time, and
+nothing boots. When the note names the item in `MN_TASK_ITEM`, the runner already holds the lock for
+this very session, and the boot goes ahead under it. `down` stops the watchdog, which hands the mutex
+on as abandoned, and clears the note. `status` shows the lock. Measured 2026-11-11 while the runner held
+it for another project's release item: `up` refused in about 1 s, booted nothing, and the watchdog
+exited by itself. A watchdog started with `MN_TASK_ITEM` set to that holder's item logged `already held
+for this item` and stayed to watch.
 
 ### The handset profile
 

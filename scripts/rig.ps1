@@ -130,7 +130,8 @@ $WatchdogPidPath = $ShotDir | Join-Path -ChildPath "watchdog$ProfileSuffix.pid"
 
 # How long the emulator may sit with no rig command before the watchdog takes it down. Generous,
 # because a measurement sitting also runs adb by hand (am start, adb reverse, uiautomator dump),
-# which the heartbeat cannot see. `-IdleMinutes 0` on `up` or `go` starts no watchdog.
+# which the heartbeat cannot see. `-IdleMinutes 0` on `up` or `go` switches the idle shutdown off; the watchdog still runs, because
+# it holds the machine-wide emulator lock (see $EmulatorMutexName).
 $DefaultIdleMinutes = 60
 
 <#
@@ -144,6 +145,23 @@ $DefaultIdleMinutes = 60
 $UnattendedIdleMinutes = 15
 $FinishedJobStates = @('done', 'failed', 'stopped')
 $WatchdogLogPath = $ShotDir | Join-Path -ChildPath "watchdog$ProfileSuffix.log"
+
+<#
+  The machine-wide `android-emulator-in-use` lock, the one the bulk task runner gives an item that
+  boots an emulator. Two emulators at once is what wedges a guest, and this rig used to boot beside
+  a runner item that held the lock: on 2026-11-09 asc_test ran for 22 min while the runner reported
+  the lock free. So the watchdog takes the same named mutex before the emulator boots and holds it
+  for as long as the emulator runs. A mutex, not a file, for the runner's reason: a hard-killed
+  holder hands it on as abandoned instead of holding it for ever. The note only names the holder.
+
+  The runner holds it itself when it hands an item the emulator (`requiresAndroidEmulator: true`),
+  and names that item in the note. The session working that item sees its id in MN_TASK_ITEM, so a
+  note naming that item counts as this rig's own lock rather than a refusal.
+#>
+$EmulatorMutexName = 'Local\mn-task-bulk-android-emulator-in-use'
+$EmulatorNotePath = 'F:\tmp\claude\mn-task-bulk\android-emulator-in-use.json'
+$LockResultPath = $ShotDir | Join-Path -ChildPath "emulator-lock$ProfileSuffix.json"
+$LockWaitSeconds = 20
 
 # netsimd's log level. See Start-Rig for why this is the only lever there is.
 $NetsimLogFilter = 'error'
@@ -397,7 +415,7 @@ function Wait-RigReady([int] $TimeoutSeconds) {
 function Start-Rig {
     if (Test-RigAttached) {
         Write-Host -Object "$RigSerial is already up."
-        Start-Watchdog
+        $null = Start-Watchdog
         return
     }
 
@@ -409,7 +427,7 @@ function Start-Rig {
         Write-Host -Object "$RigAvdName is already running (pid $(($running | ForEach-Object -Process { $_.ProcessId }) -join ', ')) but adb reports it '$state'. Waiting for it."
         if (Wait-RigReady -TimeoutSeconds $BootTimeoutSeconds) {
             Write-Host -Object "$RigSerial is up."
-            Start-Watchdog
+            $null = Start-Watchdog
             return
         }
         throw "$RigAvdName has been running for a while and is still '$state'. It is wedged, usually because the machine has no CPU left for it — check what else is running, then `".\scripts\rig.ps1 down`" and start over."
@@ -461,6 +479,10 @@ function Start-Rig {
         Write-Warning -Message "netsimd is already running (pid $(($sharedNetsim | ForEach-Object -Process { $_.ProcessId }) -join ', ')), started by another emulator. This one will join it at ITS log level, not RUST_LOG=$NetsimLogFilter."
     }
 
+    # Before the boot, never after it: a lock taken once the guest is up would leave a window in
+    # which another emulator's holder takes it too, and two emulators run anyway.
+    Request-EmulatorLock
+
     Write-Host -Object "Booting $RigAvdName headless on port $RigConsolePort (RUST_LOG=$NetsimLogFilter) ..."
     Start-Process -FilePath $EmulatorExe -ArgumentList @(
         '-avd', $RigAvdName,
@@ -474,7 +496,7 @@ function Start-Rig {
 
     if (Wait-RigReady -TimeoutSeconds $BootTimeoutSeconds) {
         Write-Host -Object "$RigSerial is up."
-        Start-Watchdog
+        $null = Start-Watchdog
         return
     }
     throw "$RigAvdName did not finish booting within $BootTimeoutSeconds s."
@@ -541,24 +563,140 @@ function Write-WatchdogLog([string] $Message) {
   a netsimd nothing else needs) down once the heartbeat is older than the idle limit.
 #>
 function Start-Watchdog {
+    # The watchdog always runs, because it is also the process that holds the emulator lock for as
+    # long as the emulator runs. `-IdleMinutes 0` switches off only its idle shutdown.
     $minutes = if ($IdleMinutes -ge 0) { $IdleMinutes } else { $DefaultIdleMinutes }
-    if ($minutes -eq 0) {
-        Write-Host -Object 'Idle watchdog: off (-IdleMinutes 0). Take the emulator down yourself with "rig.ps1 down".'
-        return
-    }
 
     $existing = Get-WatchdogProcess
     if ($existing) {
         Write-Host -Object "Idle watchdog: already watching (pid $($existing.ProcessId))."
-        return
+        return $null
     }
 
     Update-Heartbeat
+    Remove-Item -Path $LockResultPath -Force -ErrorAction SilentlyContinue
     $arguments = @('-NoProfile', '-NonInteractive', '-File', $PSCommandPath, 'watchdog', '-IdleMinutes', "$minutes", '-RigProfile', $RigProfile)
     if ($Serial) { $arguments += @('-Serial', $Serial) }
     $process = Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList $arguments -WindowStyle Hidden -PassThru
     Set-Content -Path $WatchdogPidPath -Value "$($process.Id)" -NoNewline
-    Write-Host -Object "Idle watchdog: pid $($process.Id) takes $RigAvdName down after $minutes min with no rig command."
+    if ($minutes -eq 0) {
+        Write-Host -Object "Idle watchdog: pid $($process.Id), holding the emulator lock only (-IdleMinutes 0). Take the emulator down yourself with `"rig.ps1 down`"."
+    } else {
+        Write-Host -Object "Idle watchdog: pid $($process.Id) takes $RigAvdName down after $minutes min with no rig command."
+    }
+    return $process
+}
+
+# The holder named by the lock's note, or a plain phrase when it left none.
+function Get-EmulatorLockHolder {
+    try {
+        $note = Get-Content -LiteralPath $EmulatorNotePath -Raw -ErrorAction Stop | ConvertFrom-Json
+        return "$($note.Item) in $($note.Project), pid $($note.Pid), since $($note.Since)"
+    } catch {
+        return 'a holder that left no note'
+    }
+}
+
+<#
+  Take the machine-wide emulator lock before a boot, or refuse to boot.
+
+  A mutex belongs to the thread that took it, and this command exits once the guest is up, so the
+  lock is taken by the watchdog, which lives exactly as long as the emulator. It reports what it got
+  in $LockResultPath; this waits for that answer and throws when another holder has the lock.
+#>
+function Request-EmulatorLock {
+    $existing = Get-WatchdogProcess
+    if ($existing) {
+        # A watchdog left from an earlier boot of this AVD. It held the lock while that emulator
+        # ran, and this boot is the same emulator's successor, so it keeps holding it.
+        $state = Read-LockResult
+        if ($state -and $state.State -in @('held', 'covered')) { return }
+        throw "The idle watchdog (pid $($existing.ProcessId)) did not get the emulator lock: android-emulator-in-use is held by $(Get-EmulatorLockHolder). Refusing to boot a second emulator; `"rig.ps1 down`" clears the watchdog."
+    }
+
+    $process = Start-Watchdog
+    $deadline = (Get-Date).AddSeconds($LockWaitSeconds)
+    while ((Get-Date) -lt $deadline) {
+        $state = Read-LockResult
+        if ($state) {
+            switch ($state.State) {
+                'held' { Write-Host -Object 'Emulator lock: android-emulator-in-use taken; the watchdog holds it while the emulator runs.'; return }
+                'covered' { Write-Host -Object "Emulator lock: already held for this item ($env:MN_TASK_ITEM) by the task runner; booting under it."; return }
+                default {
+                    # The watchdog exits by itself on a refusal; leave no answer behind for `status` to misread.
+                    Remove-Item -Path $LockResultPath -Force -ErrorAction SilentlyContinue
+                    throw "android-emulator-in-use is held by $($state.Holder). One emulator at a time on this machine: refusing to boot $RigAvdName. Retry once that holder lets it go." }
+            }
+        }
+        if ($process.HasExited) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    throw "The watchdog (pid $($process.Id)) gave no answer about the emulator lock within $LockWaitSeconds s; see $WatchdogLogPath. Not booting."
+}
+
+function Read-LockResult {
+    try {
+        return (Get-Content -LiteralPath $LockResultPath -Raw -ErrorAction Stop | ConvertFrom-Json)
+    } catch {
+        return $null
+    }
+}
+
+function Write-LockResult([string] $State, [string] $Holder = '') {
+    $json = [ordered]@{ State = $State; Holder = $Holder; Pid = $PID } | ConvertTo-Json -Compress
+    Set-Content -LiteralPath $LockResultPath -Value $json -NoNewline
+}
+
+<#
+  In the watchdog: take the lock, write the note naming this rig, and report. Returns the mutex
+  while it is held, else $null.
+#>
+function Enter-EmulatorLock {
+    $mutex = [System.Threading.Mutex]::new($false, $EmulatorMutexName)
+    $taken = $false
+    try {
+        $taken = $mutex.WaitOne(0)
+    } catch [System.Threading.AbandonedMutexException] {
+        # Its last holder died without letting go; the wait still made it ours.
+        $taken = $true
+    }
+    if ($taken) {
+        $item = if ($env:MN_TASK_ITEM) { $env:MN_TASK_ITEM } else { "rig.ps1 $RigAvdName" }
+        try {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $EmulatorNotePath) -Force | Out-Null
+            [System.IO.File]::WriteAllText($EmulatorNotePath, (([ordered]@{ Pid = $PID; Item = $item; Project = 'selection-pad-android'; Since = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') }) | ConvertTo-Json -Compress))
+        } catch {
+            # The note only names the holder; the lock is the mutex, which is held.
+        }
+        Write-LockResult -State 'held'
+        Write-WatchdogLog -Message "took android-emulator-in-use for $item"
+        return $mutex
+    }
+
+    $mutex.Dispose()
+    $holder = Get-EmulatorLockHolder
+    $noteItem = try { (Get-Content -LiteralPath $EmulatorNotePath -Raw -ErrorAction Stop | ConvertFrom-Json).Item } catch { '' }
+    if ($env:MN_TASK_ITEM -and $noteItem -eq $env:MN_TASK_ITEM) {
+        Write-LockResult -State 'covered' -Holder $holder
+        Write-WatchdogLog -Message "android-emulator-in-use is already held for this item: $holder"
+    } else {
+        Write-LockResult -State 'refused' -Holder $holder
+        Write-WatchdogLog -Message "android-emulator-in-use is held by $holder"
+    }
+    return $null
+}
+
+function Exit-EmulatorLock($Mutex) {
+    if ($null -eq $Mutex) { return }
+    try {
+        $note = Get-Content -LiteralPath $EmulatorNotePath -Raw -ErrorAction Stop | ConvertFrom-Json
+        if ([int]$note.Pid -eq $PID) { Remove-Item -LiteralPath $EmulatorNotePath -Force -ErrorAction SilentlyContinue }
+    } catch {
+        # No note, or an unreadable one: nothing of ours to remove.
+    }
+    $Mutex.ReleaseMutex()
+    $Mutex.Dispose()
+    Write-WatchdogLog -Message 'let go of android-emulator-in-use'
 }
 
 function Get-WatchdogProcess {
@@ -574,8 +712,39 @@ function Get-WatchdogProcess {
 }
 
 function Invoke-Watchdog {
-    $minutes = if ($IdleMinutes -gt 0) { $IdleMinutes } else { $DefaultIdleMinutes }
-    Write-WatchdogLog -Message "watching $RigAvdName, idle limit $minutes min ($UnattendedIdleMinutes min after an unattended session)"
+    $minutes = if ($IdleMinutes -ge 0) { $IdleMinutes } else { $DefaultIdleMinutes }
+    $limitText = if ($minutes -eq 0) { 'no idle limit (-IdleMinutes 0)' } else { "idle limit $minutes min ($UnattendedIdleMinutes min after an unattended session)" }
+    Write-WatchdogLog -Message "watching $RigAvdName, $limitText"
+
+    $mutex = Enter-EmulatorLock
+    if ($null -eq $mutex -and @(Get-AvdProcesses).Count -eq 0) {
+        # Refused before a boot: the `up` that started this refuses too, so there is nothing to
+        # watch. Covered by the runner's hold, the boot goes ahead and this stays to watch it.
+        if ((Read-LockResult).State -eq 'refused') {
+            Write-WatchdogLog -Message 'no emulator to watch and no lock; exiting'
+            Remove-Item -Path $WatchdogPidPath -Force -ErrorAction SilentlyContinue
+            return
+        }
+    } elseif ($null -eq $mutex -and (Read-LockResult).State -eq 'refused') {
+        Write-WatchdogLog -Message "WARNING: $RigAvdName is already running beside another holder of android-emulator-in-use"
+    }
+
+    try {
+        Watch-Rig -Minutes $minutes
+    } finally {
+        Exit-EmulatorLock -Mutex $mutex
+        Remove-Item -Path $LockResultPath -Force -ErrorAction SilentlyContinue
+    }
+    # Only our own pid: a superseded watchdog must not delete its successor's file.
+    if ("$(Get-Content -Path $WatchdogPidPath -Raw -ErrorAction SilentlyContinue)".Trim() -eq "$PID") {
+        Remove-Item -Path $WatchdogPidPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Watch-Rig([int] $Minutes) {
+    $minutes = $Minutes
+    # A boot started just before this watchdog has its processes up within seconds; give it a
+    # minute before "gone" can mean anything, which the first sleep below already does.
     while ($true) {
         Start-Sleep -Seconds 60
 
@@ -588,6 +757,9 @@ function Invoke-Watchdog {
             Write-WatchdogLog -Message "$RigAvdName is gone; nothing left to watch"
             break
         }
+
+        # -IdleMinutes 0: no idle shutdown at all, only the lock, held until the emulator goes.
+        if ($minutes -eq 0) { continue }
 
         # A heartbeat newer than the job check is a later rig command, so it is read on every pass.
         $job = Get-HeartbeatJob
@@ -606,7 +778,6 @@ function Invoke-Watchdog {
         Stop-Rig *>&1 | ForEach-Object -Process { Write-WatchdogLog -Message "$_" }
         break
     }
-    Remove-Item -Path $WatchdogPidPath -Force -ErrorAction SilentlyContinue
 }
 
 <#
@@ -658,6 +829,26 @@ function Stop-Rig {
         }
     } elseif (@(Get-NetsimProcesses).Count -gt 0) {
         Write-Host -Object 'netsimd left running: another emulator on this machine still uses it.'
+    }
+
+    <#
+      The watchdog holds the emulator lock, and left alone it would let go only on its next pass, up
+      to a minute later. A `down` followed by an `up` in that minute would find the old watchdog,
+      take its lock as this boot's, and then lose it when that watchdog saw the emulator gone. So a
+      `down` ends the watchdog too (unless it is the watchdog asking), which hands the mutex on as
+      abandoned, and clears the note that named it.
+    #>
+    $watchdog = Get-WatchdogProcess
+    if ($watchdog -and $watchdog.ProcessId -ne $PID) {
+        Stop-Process -Id $watchdog.ProcessId -Force -ErrorAction SilentlyContinue
+        Write-Host -Object "Stopped the idle watchdog (pid $($watchdog.ProcessId)); android-emulator-in-use is free again."
+        try {
+            $note = Get-Content -LiteralPath $EmulatorNotePath -Raw -ErrorAction Stop | ConvertFrom-Json
+            if ([int]$note.Pid -eq [int]$watchdog.ProcessId) { Remove-Item -LiteralPath $EmulatorNotePath -Force -ErrorAction SilentlyContinue }
+        } catch {
+            # No note: nothing to clear.
+        }
+        Remove-Item -Path $WatchdogPidPath, $LockResultPath -Force -ErrorAction SilentlyContinue
     }
 
     Write-Host -Object "$RigSerial is down."
@@ -995,6 +1186,9 @@ function Show-Status {
     Write-Host -Object "AVD processes : $((@(Get-AvdProcesses) | ForEach-Object -Process { "$($_.Name) $($_.ProcessId)" }) -join ', ')"
     $watchdog = Get-WatchdogProcess
     Write-Host -Object "Idle watchdog : $(if ($watchdog) { "pid $($watchdog.ProcessId)" } else { 'none' })"
+    $lock = Read-LockResult
+    $lockText = if ($watchdog -and $lock -and $lock.State -eq 'held') { 'held by the watchdog' } elseif ($watchdog -and $lock -and $lock.State -eq 'covered') { "held for $env:MN_TASK_ITEM by the task runner" } else { "not ours (note: $(Get-EmulatorLockHolder))" }
+    Write-Host -Object "Emulator lock : android-emulator-in-use $lockText"
     Write-Host -Object "netsimd       : $((@(Get-NetsimProcesses) | ForEach-Object -Process { "pid $($_.ProcessId)" }) -join ', ')"
     Write-Host -Object "Also attached : $(((Get-AttachedSerials) | Where-Object -FilterScript { $_ -ne $RigSerial }) -join ', ')"
     if (-not (Test-RigAttached)) { return }
