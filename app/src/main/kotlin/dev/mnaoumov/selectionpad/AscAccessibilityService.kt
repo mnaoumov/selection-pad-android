@@ -397,6 +397,8 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
     ) {
       updateSettingsInFront()
+      // The navigation bar appearing (a boot-time connect before SystemUI is ready) is a window change.
+      if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) pad?.refitDock("windows changed")
     }
     /*
      * The previous snapshot has to be taken BEFORE the observer overwrites it, because what the

@@ -113,6 +113,14 @@ class Pad(
     windowManager.addView(view, layoutParams)
     root = view
     params = layoutParams
+    // Only a trigger: this window is dispatched no bar insets of its own (see layoutFor), so the
+    // listener's values are ignored and the offset is read from WindowMetrics again.
+    view.setOnApplyWindowInsetsListener { v, insets ->
+      v.post { refitDock("insets applied") }
+      insets
+    }
+    // SystemUI can publish its bars after a boot-time connect, and nothing tells this window when.
+    for (delay in REFIT_DELAYS_MS) view.postDelayed({ if (root === view) refitDock("${delay}ms after show") }, delay)
     view.post {
       if (mode == PadMode.FLOATING && clampToScreen(layoutParams, view)) {
         runCatching { windowManager.updateViewLayout(view, layoutParams) }
@@ -321,6 +329,29 @@ class Pad(
     if (x == layoutParams.x && y == layoutParams.y) return false
     layoutParams.x = x
     layoutParams.y = y
+    return true
+  }
+
+  /**
+   * Moves a docked pad to clear the bars as they are NOW, when they differ from what its offset was
+   * built from. True when it moved.
+   *
+   * The offset is read once, when the window is laid out. A pad shown before SystemUI has published
+   * its bars, as at a boot-time connect, read 0 and stayed under the navigation bar until its next
+   * relayout: on the `handset` profile, `[0,2236][1272,2772]` against a bar from y 2688 (2026-11-11).
+   * The service calls this on every window change, and [show] calls it a few times after showing.
+   */
+  fun refitDock(why: String): Boolean {
+    val view = root ?: return false
+    val layoutParams = params ?: return false
+    if (mode != PadMode.DOCKED) return false
+    val placement = PadPlacement.of(mode, dockEdge, minimised)
+    val wanted = if (placement.anchor == PadPlacement.Anchor.TOP) statusBarHeight() else navigationBarHeight()
+    if (wanted == layoutParams.y) return false
+    Diag.log("pad: docked offset ${layoutParams.y} -> $wanted ($why) — the bars changed since it was laid out")
+    layoutParams.y = wanted
+    runCatching { windowManager.updateViewLayout(view, layoutParams) }
+    view.post { logButtonBounds(view) }
     return true
   }
 
@@ -620,6 +651,9 @@ class Pad(
      * through. Two frames alone were 7-18 ms on the rig, and three grabs of four still reached the pad.
      */
     const val PASS_THROUGH_SETTLE_MS = 100L
+
+    /** When [show] re-reads the bars for a docked pad, after the window-change events ([refitDock]). */
+    val REFIT_DELAYS_MS = longArrayOf(500L, 2_000L, 10_000L)
 
     /** The least width of a header button ([compact]). */
     const val TOUCH_TARGET_DP = 48
