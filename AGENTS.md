@@ -4578,6 +4578,23 @@ sees the service as not running (it records `debug: leaving this connection iner
 use. The rig's `rebind` can connect twice, which uses the marker up on the first connect, so check the ring
 file. Prefer `uiautomator events`, which is the real state.
 
+**The phone confirms the suspension, the notification and the tile's tap (2026-11-11, OnePlus 15, the Play
+internal-test build).** Before the run the service was bound. With `adb shell uiautomator events` running,
+`dumpsys accessibility` read `Bound services:{}` with both services still enabled, so Bitwarden was suspended
+too, and the process (pid 7090) stayed alive. That is not the 2026-10-31 shape, where Bitwarden stayed bound,
+so a UiAutomation connection does not explain that day either. The notification turned to `Not running — turn
+it off and on in Accessibility settings` with one action, `What to do`, a `startActivity` PendingIntent. A tap
+on the tile logged `tile: the service is enabled but not running — opening the launcher screen`. OxygenOS's
+round tiles draw a label and no subtitle, so `Not running — tap for help` is not shown on this phone. The tile
+was drawn active, because it shows the pad wish. The phone was locked, so the launch waited behind the keyguard,
+and the launcher row was not seen. After `pkill -f uiautomator` both services were bound again within 4 s, and
+the notification read `Pad shown`.
+
+**`lifecycle.log` cannot be read from the Play build.** `run-as` answers `package not debuggable`, and the
+phone cannot take a debug build over the Play one (*The Play build cannot be overwritten by a debug install*).
+So until the file can be got out of a release build, the cause of an unbind on the phone can be read only
+from `dumpsys activity exit-info dev.mnaoumov.selectionpad`, which lists exits, not unbinds.
+
 **The launcher screen asks for the battery-optimization exemption while the app lacks it.** The
 row checks `PowerManager.isIgnoringBatteryOptimizations` on every resume. It opens
 `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`, which needs no permission, and dontkillmyapp.com's
