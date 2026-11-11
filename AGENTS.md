@@ -4296,7 +4296,15 @@ geometry is `PadPlacement`, unit-tested. Three things were measured on the `hand
   `pad: docked offset 0 -> 84 (insets applied)`. In that boot it fired 16 times in 5 minutes, every
   one from the insets listener, and the frame followed each change (`[0,2152][1272,2688]` and
   `[0,2236][1272,2772]` in turn). An inset of 0 at the moment of a boot-time connect was not seen,
-  because the keyguard keeps the pad hidden until the unlock. The phone has not run it yet.
+  because the keyguard keeps the pad hidden until the unlock. **The phone keeps the docked pad clear
+  of the bars across a reboot (2026-11-11, OnePlus 15, a debug build carrying `b3b0085`).** With the pad
+  shown and docked at the bottom, `adb reboot`, then the owner's PIN unlock: the service connected
+  (`pad was visible, DOCKED, locked=false`) and the pad window read `[0,2180][1272,2716]` straight
+  after the unlock and 20 s later, ending at the 56 px navigation inset. Docked at the top and rebooted
+  again, it read `[0,141][1272,677]` at the unlock and 20 s later, just under the 141 px status bar.
+  The phone's insets did not move after either boot, so `refitDock` had nothing to correct there, and
+  its `docked offset` line could not be read: the `ASC` logcat was silent after the reboot (the logd
+  flow-control gotcha under *The test rig*). The rig's boot is still the only place it has fired.
 - **The header buttons are only as wide as their captions, but at least 48 dp.** Four `Button`s at
   their default 88 dp minimum took 308 px each, so the status line was a 40 px column, its text wrapped
   a letter a line, and the pad grew to half the screen.
