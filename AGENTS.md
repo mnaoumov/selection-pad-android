@@ -4248,7 +4248,11 @@ geometry is `PadPlacement`, unit-tested. Three things were measured on the `hand
   y 141 put both pad and handle at y 282. Docked windows now request `FLAG_LAYOUT_IN_SCREEN`,
   `setFitInsetsTypes(0)` and `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS`: the status/cutout and navigation
   offsets are applied once, by the pad, from the physical screen edges. This applies to the full
-  pad and minimised handle. The revised placement still needs device verification.
+  pad and minimised handle. On the OnePlus 15 (2026-11-10, the Play internal-test build) the
+  top-docked window read `frame=[0,141][1272,677]` and the `▼ pad` handle `[964,141][1272,309]`,
+  both just under the 141 px status bar. At the bottom the pad read `[0,2180][1272,2716]` and the
+  `▲ pad` handle `[964,2548][1272,2716]`, each ending at the 56 px navigation inset. The rig's 84 px
+  profile has not been re-measured since the change.
 - **The header buttons are only as wide as their captions, but at least 48 dp.** Four `Button`s at
   their default 88 dp minimum took 308 px each, so the status line was a 40 px column, its text wrapped
   a letter a line, and the pad grew to half the screen.
@@ -4260,8 +4264,18 @@ The launcher screen keeps its 240 dp clearance at the edge the docked pad is on:
 top, `disclosure fit` read `first line at y 1020` (84 + 96 + 840). Auto-dodge, where the pad moves by
 itself when the selection is under it, was considered and not built: it moves the pad from under the
 user's finger unasked. The phone's 2026-11-02 pass confirmed the header, minimise/restore,
-floating handle and restart persistence, and found the doubled top inset above. Bottom-handle
-tap-through and a character step with the pad at the top remain unverified.
+floating handle and restart persistence, and found the doubled top inset above. The 2026-11-10 pass
+(Chrome on `en.wikipedia.org/wiki/Text_editor`, the old announcement in effect) confirmed the rest.
+With the pad at the top, `→ char` from `interactive` went `15 -> 16` in 1 gesture and 0.71 s. With the
+pad minimised at the bottom, a long-press at (258, 2618) on the caption's `Editors`, inside the area the
+full pad covered, selected that word in Chrome, and a tap on `▲ pad` expanded the pad again.
+
+**The Play build cannot be overwritten by a debug install.** Once the phone has the Play internal-test
+build, `.\gradlew phone` fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, because the signatures differ.
+Measure against the Play build. It is not debuggable, so `run-as` and the debug marker files do not work
+there, but the `ASC` log does. Uninstalling it to get a debug build onto the phone would throw away the
+owner's Play install (`installerPackageName=com.android.vending`), which is the trusted install source
+ECM wants, so leave that call to the owner.
 
 **The header's `⚙ app` opens the launcher screen, where the settings are (owner, 2026-10-31).** Until then
 that screen was reachable only from the launcher icon. The service starts `MainActivity` with
