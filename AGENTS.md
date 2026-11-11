@@ -4411,8 +4411,17 @@ launcher's **Quick Settings tile** switch was turned on:
 | `Add tile` | the same hide, then `done`, `showing the pad`, `answered 2`, `tile: added to the panel` |
 | `✕` first, the tile removed, then `Add tile` | no `hiding` line, because there was nothing on screen to hide. Then `done`, `answered 2`, `added to the panel`, with no `showing the pad`. The pad stayed closed |
 
-One more thing showed up. After `remove-tile`, the switch kept reading on until the launcher screen
-resumed again, because it is refreshed on resume and nothing else.
+That pass also showed that after `remove-tile` the switch kept reading on until the launcher screen
+resumed again, because it was refreshed on resume and nothing else. A tap on it then would have
+disabled the component instead of offering the tile. Now `PadTileService` calls the screen's live hook
+(`AscAccessibilityService.onToggled`) whenever `onTileAdded`, `onTileRemoved` or `onStartListening`
+changes `tileInPanel`. It calls only the hook, not `refreshToggles`, because the tile refresh in that
+would ask SystemUI to bind the tile again. Measured 2026-11-11 on the rig, with the launcher screen in
+front the whole time: `remove-tile` logged `tile: removed from the panel`, then the screen's refresh
+26-176 ms later, and the switch read off. `add-tile` then turned it back on the same way. The phone has
+not run it yet. **A guest that has just cold-booted on a loaded machine can ignore `cmd statusbar`
+entirely:** with a load average of 30-70 and SystemUI restarting, `remove-tile` and `set-tiles` left
+`sysui_qs_tiles` unchanged for 10 minutes, and worked on a later boot.
 
 **The pad also steps aside while Settings is the foreground app (2026-11-11).** On the OnePlus 15, with the
 Play build, switching the service off in Settings → Accessibility → Selection Pad brings up OxygenOS's
