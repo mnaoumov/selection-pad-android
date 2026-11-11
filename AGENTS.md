@@ -4433,6 +4433,27 @@ and a rebind posted it again. `pm revoke` cancelled it, and the launcher then sa
 but notifications are blocked. The accessibility overlay draws above the expanded shade on the rig,
 so the docked pad covers the bottom of the notification list while it is open.
 
+**The phone confirms it (2026-11-11, OnePlus 15, the Play internal-test build, `versionCode` 1).** The
+measurements were taken on the Play build, because a debug install cannot replace it. `POST_NOTIFICATIONS`
+had never been asked for:
+
+| check | result |
+|---|---|
+| opening the app | no permission dialog |
+| `Notification` off, tap; `Don't allow` twice; third tap | the system dialog each of the first two times, the switch left off with the hint; the third tap opened `com.oplus.notificationmanager/.AppNotificationSettingsActivity` |
+| allowed there, then the switch | `notification: switch on`, a record with `importance=2` (Silent), `ONGOING_EVENT`, `vis=SECRET`, channel `pad`, and actions `Show the pad` / `Close the pad` and `Settings` |
+| its toggle button, a tap on the body, `Settings` | toggled the pad both ways and the text followed. The body tap left the launcher in front, and `Settings` opened `MainActivity` |
+| **Show the pad**, the pad's `✕`, `cmd statusbar click-tile` | `Pad shown` / `Pad hidden` in step each time |
+| lock with the pad shown, then the owner's unlock | `SCREEN_ON -> locked=true`: no pad and no Selection Pad notification on the lock screen, and the record still read `Pad shown`. At the unlock the log read `USER_PRESENT -> locked=false` and `showing the pad`, and the pad window was back |
+| the service taken out of the enabled list, then put back | the record cancelled, then `Pad shown` posted again |
+| the switch off | `notification: switch off`, and the record was gone at once |
+
+**A `uiautomator dump` moves the launcher screen's layout under the next tap.** The dump unbinds the
+service, so the not-running row appears (659 px on the phone), and the dump's bounds include it. When the
+service binds again, about 1 s later, the row goes and every view below it moves up. On the phone a tap
+aimed at the `Notification` switch from those bounds landed on **Open battery optimization settings**.
+Take a screenshot after the rebind and aim from that.
+
 **The system's accessibility button does NOT toggle the pad, and the service must never request it.** With
 `flagRequestAccessibilityButton` in `accessibility_service_config.xml` (2026-10-30 to 2026-11-07), the owner
 found on the OnePlus 15 (2026-11-04) that the floating button was forced on, and that closing it left the pad
