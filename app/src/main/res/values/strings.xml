@@ -13,6 +13,9 @@
     <string name="disclosure_agree">I understand — open Accessibility settings</string>
     <string name="disclosure_decline">No thanks</string>
     <string name="disclosure_declined">Selection Pad stays off until you agree.</string>
+    <string name="share_diagnostic_log">Share diagnostic log</string>
+    <string name="share_diagnostic_log_subject">Selection Pad diagnostic log</string>
+    <string name="share_diagnostic_log_none">No app here can receive the log.</string>
     <string name="privacy_policy">Privacy policy</string>
     <string name="privacy_policy_no_browser">No app here can open links. The privacy policy is at %1$s</string>
     <string name="consent_recorded">Thanks. Enable “Selection Pad” in the list that opens.</string>

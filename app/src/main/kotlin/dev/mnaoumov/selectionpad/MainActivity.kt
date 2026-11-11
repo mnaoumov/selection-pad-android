@@ -122,6 +122,38 @@ class MainActivity : Activity() {
     column.addView(switchedOffRow)
     column.addView(batteryRow)
 
+    /*
+     * The lifecycle ring (`Diag.record`) is what says why the service stopped running, and on the Play
+     * build `run-as` cannot read it. This hands it to the share sheet as text, so it can be sent from
+     * the phone whether or not the service is bound. The ring holds no page text, and sharing needs no
+     * permission.
+     */
+    column.addView(
+      Button(this).apply {
+        text = getString(R.string.share_diagnostic_log)
+        setOnClickListener {
+          val lines = Diag.lifecycleLines(this@MainActivity)
+          val version = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
+          val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_diagnostic_log_subject))
+            putExtra(Intent.EXTRA_TEXT, Diag.shareText(version, Build.VERSION.SDK_INT, lines))
+          }
+          Diag.log("diag: sharing ${lines.size} lifecycle line(s)")
+          // The docked pad draws over the share sheet's targets (the rig, 2026-11-11), so it steps
+          // aside until this screen is back in front.
+          AscAccessibilityService.stepAside("the share sheet")
+          sharing = true
+          runCatching { startActivity(Intent.createChooser(send, getString(R.string.share_diagnostic_log))) }
+            .onFailure {
+              sharing = false
+              AscAccessibilityService.comeBack()
+              Toast.makeText(this@MainActivity, R.string.share_diagnostic_log_none, Toast.LENGTH_LONG).show()
+            }
+        }
+      }
+    )
+
     scroll = ScrollView(this).apply { addView(column) }
     SystemBars.fit(this, scroll, column, contentEdges())
     setContentView(scroll)
@@ -521,8 +553,15 @@ class MainActivity : Activity() {
     return Edges(PADDING, PADDING * 2 + (top * density).toInt(), PADDING, (bottom * density).toInt())
   }
 
+  /** The share sheet took the pad aside; this screen coming back is the sheet going away. */
+  private var sharing = false
+
   override fun onResume() {
     super.onResume()
+    if (sharing) {
+      sharing = false
+      AscAccessibilityService.comeBack()
+    }
     // The pad may have moved edge since this screen was built.
     contentEdges().let { column.setPadding(it.left, it.top, it.right, it.bottom) }
     // Re-read on every return, so the row goes away once the user has granted the exemption.
