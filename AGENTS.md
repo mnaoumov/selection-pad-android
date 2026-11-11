@@ -4166,6 +4166,16 @@ and `initiatingPackageName=com.android.shell`, which it treats as untrusted. Oxy
 `MANAGE_APP_OPS_MODES`). A trusted install source is the only real fix — which is why Play is a
 design constraint here rather than a distribution preference. Full reasoning in `the gesture spike's notes`.
 
+**But on 2026-11-11 an adb-installed build DID get the switch, in a secondary user.** The OnePlus 15
+held a debug build (`versionCode` 2, `installerPackageName=null`) installed with `adb install`, which
+installs it for every user. In a second Android user made for the review video, Settings >
+Accessibility > Downloaded apps > Selection Pad showed the **Selection Pad** switch above Shortcut and
+App info. Tapping it brought up Android's "Allow full control" dialog, and **Allow** turned the service
+on. That was not measured in the owner's own user. It is also the first such measurement since
+`flagRequestAccessibilityButton` was removed, and the missing switch may have been that flag's
+`INVISIBLE_TOGGLE` fragment type rather than ECM (*The system's accessibility button does NOT toggle the
+pad*). Until that is measured in the main user, keep treating Play as required.
+
 A further wrinkle worth knowing: a service enabled with `settings put` **runs**, but that Settings
 row still reads `Off`. So the list is not a reliable indicator of what is actually running — check
 `settings get secure enabled_accessibility_services`, or just look for the pad.
@@ -4446,8 +4456,13 @@ and it stays until Settings leaves the front. Measured 2026-11-11 on the rig:
 | a rebind with Settings in front | `service connected`, then `aside: Settings came to the front`, with no `showing the pad` before it |
 | control: Home, the debug target, `→ char` from `bravo` | the pad back, `11 -> 12` |
 
-The phone has not run it yet. The rig's dialog sits mid-screen, so only the phone shows the sheet that
-the pad used to cover.
+**The phone confirms it (2026-11-11, OnePlus 15, a debug build at `versionCode` 2, in a secondary
+Android user made for the review video).** With the pad docked and showing, the launcher's **I understand**
+opened Accessibility settings, and the log read `aside: Settings came to the front` and `aside: hiding
+the pad while Settings is in front`. The switch was turned off there, and OxygenOS's "Turn off Selection
+Pad?" sheet came up with `Keep on` and `Turn off` clear, with no pad over them. `Turn off` switched the
+service off. Earlier in the same take, turning the service on in Settings logged `Settings came to the
+front`, and Home logged `Settings left the front`, with the pad shown on the home screen.
 
 **An ongoing notification shows or closes the pad from the notification list, and it is OFF by
 default (owner, 2026-10-30), because it is the app's only permission (`PadNotification`).** The
