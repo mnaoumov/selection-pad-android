@@ -86,6 +86,18 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     super.onDestroy()
   }
 
+  /**
+   * `adb shell dumpsys activity service dev.mnaoumov.selectionpad/.AscAccessibilityService` prints the
+   * lifecycle ring. That is how a release build's ring is read over adb, where `run-as` is refused.
+   * The system lets only a caller holding `DUMP` reach this, which the shell does and no ordinary app
+   * can, and the ring holds no page text (`Diag`).
+   */
+  override fun dump(fd: java.io.FileDescriptor?, writer: java.io.PrintWriter, args: Array<out String>?) {
+    val lines = Diag.lifecycleLines(this)
+    writer.println("${Diag.LIFECYCLE_FILE}: ${lines.size} line(s)")
+    lines.forEach(writer::println)
+  }
+
   override fun onServiceConnected() {
     super.onServiceConnected()
 

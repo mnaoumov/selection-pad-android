@@ -45,6 +45,11 @@ The app writes diagnostic lines to the device's system log (logcat), as Android 
 Those lines contain only numbers — offsets, pixel positions and timings — never text, and the app
 does not read or transmit them.
 
+The app also keeps a short record of its own service starting and stopping (times, process numbers
+and the reason Android gives), in its private storage, so that a problem can be diagnosed after the
+system log has rotated. It holds no text. It leaves the device only if you tap **Share diagnostic
+log** and pick an app to send it with yourself.
+
 ## The optional notification
 
 If you turn it on in the app, Selection Pad shows an ongoing notification with a button that shows
@@ -54,7 +59,7 @@ drawn by your phone and is never sent anywhere. Turning the switch off removes i
 
 ## What the app shares
 
-Nothing, with anyone. There is no network access, no analytics, no advertising, no crash
+Nothing, with anyone, unless you share the diagnostic log yourself as above. There is no network access, no analytics, no advertising, no crash
 reporting and no third-party code that could do any of these.
 
 ## Your control

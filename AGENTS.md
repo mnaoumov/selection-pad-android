@@ -4561,7 +4561,8 @@ happened while nobody was watching. Before the exemption it listed six `o-kill(7
 17:31 and 17:51 on 2026-10-16, and `o-kill(322)` at 23:30 on 2026-10-15 and at 00:21 on 2026-10-17.
 
 **The service keeps its lifecycle in a ring file, `files/lifecycle.log`, which outlives logcat and the
-process alike.** Read it with `adb shell run-as dev.mnaoumov.selectionpad cat files/lifecycle.log`. Each line
+process alike.** On a debug build, read it with `adb shell run-as dev.mnaoumov.selectionpad cat files/lifecycle.log`.
+On any build, use one of the two readers under *`lifecycle.log` from a release build* below. Each line
 has a time and the pid. `Diag.record` writes the service's create, connect, unbind and destroy, the
 toggles finding the service not running, and, at each connect, every process exit since the last one,
 with the system's own reason (`exit: pid 4429 at ..., reason=16 status=0 (stop dev.mnaoumov.selectionpad due
@@ -4620,10 +4621,29 @@ was drawn active, because it shows the pad wish. The phone was locked, so the la
 and the launcher row was not seen. After `pkill -f uiautomator` both services were bound again within 4 s, and
 the notification read `Pad shown`.
 
-**`lifecycle.log` cannot be read from the Play build.** `run-as` answers `package not debuggable`, and the
-phone cannot take a debug build over the Play one (*The Play build cannot be overwritten by a debug install*).
-So until the file can be got out of a release build, the cause of an unbind on the phone can be read only
-from `dumpsys activity exit-info dev.mnaoumov.selectionpad`, which lists exits, not unbinds.
+**`lifecycle.log` from a release build: `run-as` is refused there, so the app gives the ring out two other
+ways (2026-11-11).** On the Play build `run-as` answers `package not debuggable`, and the phone cannot take a
+debug build over the Play one (*The Play build cannot be overwritten by a debug install*). Neither way adds a
+permission or an exported component, and the ring holds no page text.
+
+- **Over adb, while the service is bound:** `adb shell dumpsys activity service
+  dev.mnaoumov.selectionpad/.AscAccessibilityService` prints `lifecycle.log: <n> line(s)`, then the lines
+  (`AscAccessibilityService.dump`). The system lets only a caller holding `DUMP` reach `dump()`, which the
+  shell does and an ordinary app cannot. While the service is not bound, `dumpsys` finds no such service,
+  so use the second way.
+- **From the phone, bound or not:** **Share diagnostic log**, the last button on the launcher screen,
+  opens the share sheet with the ring as plain text, headed by the version and SDK (`Diag.shareText`).
+  The docked pad draws over the sheet's targets, so it steps aside for the sheet, the same way it does
+  for the add-tile dialog, and comes back when the launcher screen is in front again. If a target app is
+  picked, the pad comes back when the user returns to the launcher, or after the 10 min net.
+
+Measured 2026-11-11 on the rig, with the debug build (the code path is the same in a release build). `dumpsys`
+printed `lifecycle.log: 228 line(s)` and the ring through the latest `service connected`. A tap on the button
+logged `diag: sharing 239 lifecycle line(s)` and `aside: hiding the pad for the share sheet`. The sheet showed
+`Selection Pad 0.1, Android SDK 37`, then the lines, with Quick Share, Chrome and Drive targets clear of the pad.
+Back logged `aside: done with the share sheet` and `lock: showing the pad`, and the pad was docked again. A tap
+on the button while a `uiautomator dump` had the service unbound opened the sheet too. The phone has not run
+it yet, and it needs a Play build that carries the change.
 
 **The launcher screen asks for the battery-optimization exemption while the app lacks it.** The
 row checks `PowerManager.isIgnoringBatteryOptimizations` on every resume. It opens

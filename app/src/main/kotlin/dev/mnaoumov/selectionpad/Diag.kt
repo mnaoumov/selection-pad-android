@@ -55,6 +55,29 @@ object Diag {
     }.onFailure { log("diag: could not write the lifecycle file (${it::class.java.simpleName})") }
   }
 
+  /**
+   * The ring file's lines, oldest first, or an empty list when there is none yet.
+   *
+   * A release build is not debuggable, so `run-as` cannot read the file there. This is what the two
+   * release-build readers use: the service's `dump()` (`adb shell dumpsys activity service
+   * dev.mnaoumov.selectionpad/.AscAccessibilityService`) and the launcher screen's share button.
+   */
+  fun lifecycleLines(context: Context): List<String> =
+    runCatching {
+      synchronized(this) {
+        val file = File(context.filesDir, LIFECYCLE_FILE)
+        if (file.exists()) file.readLines().filter { it.isNotEmpty() } else emptyList()
+      }
+    }.getOrDefault(emptyList())
+
+  /** The share sheet's text: a header naming the build, then the ring's lines. */
+  internal fun shareText(versionName: String?, sdk: Int, lines: List<String>): String =
+    buildString {
+      append("Selection Pad ").append(versionName ?: "?").append(", Android SDK ").append(sdk).append('\n')
+      append(LIFECYCLE_FILE).append(": ").append(lines.size).append(" line(s)\n")
+      lines.forEach { append(it).append('\n') }
+    }
+
   /** The last [max] of [lines]. */
   internal fun trimmed(lines: List<String>, max: Int): List<String> = if (lines.size <= max) lines else lines.takeLast(max)
 }
