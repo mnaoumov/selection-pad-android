@@ -4364,6 +4364,32 @@ clear. `Don't add tile` answered 0, and `Add tile` answered 2 in another run. Ea
 `aside: done with the add-tile dialog`, then `lock: showing the pad`, and the pad was back. The phone has
 not run it yet.
 
+**The pad also steps aside while Settings is the foreground app (2026-11-11).** On the OnePlus 15, with the
+Play build, switching the service off in Settings → Accessibility → Selection Pad brings up OxygenOS's
+"Turn off Selection Pad?" sheet, with `Keep on` and `Turn off` at about y 2450-2610. That was inside the
+docked pad (y 2186-2716), so neither button could be tapped until the pad was minimised. The dialog
+belongs to Settings itself. Settings is the user's own app, not a page to select text in, so the pad
+leaves the whole package alone rather than guessing which of its windows is a dialog
+(`LockGate.settingsAside`, `SETTINGS_PACKAGES` = `com.android.settings`). On every `TYPE_WINDOWS_CHANGED`
+and `TYPE_WINDOW_STATE_CHANGED`, `updateSettingsInFront` reads the package of the topmost
+`TYPE_APPLICATION` window. That window can have no tree while it animates in, and skipping it would read the
+window under it, so the check then looks again every 300 ms, up to 10 times. Right after a connect the
+window list can be empty, and then `rootInActiveWindow` answers, so a connect inside Settings does not flash
+the pad. Like the lock and the add-tile step-aside, it never writes `padVisible`. **The tile and the
+notification still win:** a toggle while the pad is stepped aside SHOWS it over Settings (`shownOverSettings`),
+and it stays until Settings leaves the front. Measured 2026-11-11 on the rig:
+
+| step | result |
+|---|---|
+| Accessibility settings opened, then Home | `aside: Settings came to the front`, `aside: hiding the pad while Settings is in front`; `aside: Settings left the front`, `lock: showing the pad` |
+| the service's page, `Use Selection Pad` switched off | stock Android's "Turn off Selection Pad?" dialog with `Keep on` and `Turn off` clear (the rig centres it, at y 685..945); `Keep on` left the service enabled |
+| the tile tapped inside Settings, 2 runs | `tile: showed the pad`, and the pad stayed through 6 s of window events in Settings; Home, then Settings again, hid it again |
+| a rebind with Settings in front | `service connected`, then `aside: Settings came to the front`, with no `showing the pad` before it |
+| control: Home, the debug target, `→ char` from `bravo` | the pad back, `11 -> 12` |
+
+The phone has not run it yet. The rig's dialog sits mid-screen, so only the phone shows the sheet that
+the pad used to cover.
+
 **An ongoing notification shows or closes the pad from the notification list, and it is OFF by
 default (owner, 2026-10-30), because it is the app's only permission (`PadNotification`).** The
 manifest declares `POST_NOTIFICATIONS`, so Play lists it, but nothing asks for it until the user

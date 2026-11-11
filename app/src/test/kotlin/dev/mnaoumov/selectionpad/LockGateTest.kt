@@ -36,6 +36,14 @@ class LockGateTest {
   }
 
   @Test
+  fun `the pad steps aside for Settings unless the user asked for it there`() {
+    assertTrue(LockGate.settingsAside(settingsInFront = true, shownOverSettings = false))
+    assertFalse(LockGate.settingsAside(settingsInFront = true, shownOverSettings = true))
+    assertFalse(LockGate.settingsAside(settingsInFront = false, shownOverSettings = false))
+    assertTrue("com.android.settings" in LockGate.SETTINGS_PACKAGES)
+  }
+
+  @Test
   fun `a pad stepped aside for a system dialog hides, and returns only when the user still wants it`() {
     assertEquals(Action.HIDE, LockGate.action(padVisible = true, locked = false, padShowing = true, aside = true))
     assertEquals(Action.NONE, LockGate.action(padVisible = true, locked = false, padShowing = false, aside = true))

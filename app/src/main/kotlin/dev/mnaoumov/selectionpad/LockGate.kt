@@ -32,6 +32,23 @@ internal object LockGate {
   }
 
   /**
+   * Whether the pad stays out of the way of the Settings app now: while [settingsInFront], unless the
+   * user asked for the pad there ([shownOverSettings]).
+   *
+   * **Settings is where the service is switched off, and its confirmation sits under a docked pad.**
+   * On the OnePlus 15 (2026-11-11) the "Turn off Selection Pad?" sheet put `Keep on` and `Turn off` at
+   * y 2450-2610, inside the pad's y 2186-2716, and the overlay draws above it, so neither could be
+   * tapped until the pad was minimised. Settings is the user's own app, not a page to select text in,
+   * so the pad steps aside for the whole package rather than guessing which of its windows is a
+   * dialog. An explicit show from the tile or the notification still wins until Settings goes.
+   */
+  fun settingsAside(settingsInFront: Boolean, shownOverSettings: Boolean): Boolean =
+    settingsInFront && !shownOverSettings
+
+  /** The packages [settingsAside] steps aside for. OxygenOS's Settings keeps the stock package name. */
+  val SETTINGS_PACKAGES = setOf("com.android.settings")
+
+  /**
    * Whether the device counts as locked: the screen is off, or the keyguard is up. A screen that is
    * on with no keyguard (no lock set, or a trusted device) is unlocked even before `USER_PRESENT`.
    */
