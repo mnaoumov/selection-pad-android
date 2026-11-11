@@ -191,6 +191,9 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     }, RECEIVER_EXPORTED)
     // Published first, so the toggles the lock gate refreshes see the service running.
     connected = this
+    // A connect can come with Settings already in front (the user just turned the service on there),
+    // so that is read first and the pad does not flash up over it.
+    updateSettingsInFront()
     applyLockGate()
 
     /*
@@ -247,14 +250,20 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
   private fun applyLockGate() {
     val pad = pad ?: return
     val settings = settings ?: return
-    when (LockGate.action(settings.padVisible, locked, pad.isShowing, asideFor != null)) {
+    when (LockGate.action(settings.padVisible, locked, pad.isShowing, asideFor != null || asideForSettings())) {
       LockGate.Action.SHOW -> {
         Diag.log("lock: showing the pad")
         pad.show()
         refreshMask()
       }
       LockGate.Action.HIDE -> {
-        Diag.log(if (locked) "lock: hiding the pad while the device is locked" else "aside: hiding the pad for $asideFor")
+        Diag.log(
+          when {
+            locked -> "lock: hiding the pad while the device is locked"
+            asideFor != null -> "aside: hiding the pad for $asideFor"
+            else -> "aside: hiding the pad while Settings is in front"
+          },
+        )
         repeating = null
         mask?.hide()
         maskedBounds = null
@@ -271,7 +280,49 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
    */
   private fun padWanted(): Boolean? {
     val pad = pad ?: return null
-    return if (locked || asideFor != null) settings?.padVisible ?: pad.isShowing else pad.isShowing
+    return if (locked || asideFor != null || asideForSettings()) settings?.padVisible ?: pad.isShowing else pad.isShowing
+  }
+
+  /** Whether the topmost application window belongs to Settings ([LockGate.settingsAside]). */
+  private var settingsInFront = false
+
+  /** Whether the user asked for the pad while Settings was in front, which keeps it there until Settings goes. */
+  private var shownOverSettings = false
+
+  private val recheckSettingsInFront = Runnable { updateSettingsInFront() }
+
+  /** How many rechecks in a row found the top window with no tree, so a rootless one cannot poll for ever. */
+  private var settingsRechecks = 0
+
+  private fun asideForSettings(): Boolean = LockGate.settingsAside(settingsInFront, shownOverSettings)
+
+  /**
+   * Re-reads which app owns the topmost application window, and steps the pad aside or brings it
+   * back when Settings comes or goes. The window list is ordered top first. A Settings dialog is an
+   * application window of Settings itself, so it counts the same as the page under it.
+   */
+  private fun updateSettingsInFront() {
+    handler.removeCallbacks(recheckSettingsInFront)
+    val listed = windows.orEmpty()
+    val window = listed.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION }
+    // Straight after a connect the window list can still be empty; the active window answers then.
+    val top = if (listed.isEmpty()) {
+      rootInActiveWindow?.packageName?.toString() ?: return
+    } else {
+      (window ?: return).root?.packageName?.toString()
+    }
+    if (top == null) {
+      // A window still animating in can have no tree yet, and skipping it would read the one under it.
+      if (settingsRechecks++ < SETTINGS_RECHECKS) handler.postDelayed(recheckSettingsInFront, SETTINGS_RECHECK_MS)
+      return
+    }
+    settingsRechecks = 0
+    val now = top in LockGate.SETTINGS_PACKAGES
+    if (now == settingsInFront) return
+    settingsInFront = now
+    if (!now) shownOverSettings = false
+    Diag.log("aside: Settings ${if (now) "came to the front" else "left the front"}")
+    applyLockGate()
   }
 
   /**
@@ -317,6 +368,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     if (connected === this) connected = null
     runCatching { unregisterReceiver(lockReceiver) }
     handler.removeCallbacks(comeBackAnyway)
+    handler.removeCallbacks(recheckSettingsInFront)
     asideFor = null
     // An overlay that outlives its service cannot be told to go away.
     mask?.hide()
@@ -329,6 +381,11 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
 
   override fun onAccessibilityEvent(event: AccessibilityEvent?) {
     if (event == null) return
+    if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
+      event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+    ) {
+      updateSettingsInFront()
+    }
     /*
      * The previous snapshot has to be taken BEFORE the observer overwrites it, because what the
      * driver needs from an event is not its contents but how it differs from what came before: a
@@ -1322,6 +1379,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
       // The user asking for the pad outranks a dialog it stepped aside for.
       service.handler.removeCallbacks(service.comeBackAnyway)
       service.asideFor = null
+      if (service.settingsInFront) service.shownOverSettings = true
       // While the device is locked this only records the wish; the unlock shows it ([LockGate]).
       // The mask is off while the pad is closed, so a selection already up gets its cover back there.
       service.applyLockGate()
@@ -1364,6 +1422,12 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
      */
     const val ASIDE_TIMEOUT_MS = 600_000L
 
+    /** How soon the Settings check looks again at a top window that has no tree yet. */
+    const val SETTINGS_RECHECK_MS = 300L
+
+    /** How many times in a row it looks again before waiting for the next window event. */
+    const val SETTINGS_RECHECKS = 10
+
     /** Whether a connected instance exists in this process ([ServiceStatus]). */
     fun running(): Boolean = connected != null
 
@@ -1374,6 +1438,9 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     fun togglePad(): Boolean? {
       val service = connected ?: return null
       val wanted = service.padWanted() ?: return null
+      // Stepped aside for Settings, the pad is wanted but not on screen, and a toggle that closed it
+      // would make the user's first tap there do nothing they can see. Show it over Settings instead.
+      if (wanted && service.asideForSettings()) return showPad()
       return if (wanted) {
         service.closePad()
         false
