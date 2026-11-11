@@ -4716,6 +4716,30 @@ was drawn active, because it shows the pad wish. The phone was locked, so the la
 and the launcher row was not seen. After `pkill -f uiautomator` both services were bound again within 4 s, and
 the notification read `Pad shown`.
 
+**The launcher row shows on the phone too (2026-11-11, OnePlus 15, the debug build of `b92fa96`, unlocked).**
+With the launcher screen in front, `uiautomator events` started at 16:39:41. The service logged `unbound` and
+`launcher: showing the not-running row` (16:39:44.995). The screenshot showed the row between **Show the pad** and
+the switches, `Selection Pad is switched on in Accessibility settings, but Android is not running it, …`, with its
+`Open Accessibility settings` button. `pkill -f uiautomator` bound the service again, and the row hid itself live
+(`hiding the not-running row`, 16:39:56). Start the `uiautomator events` from a process that outlives the command
+(`Start-Process`): run from a PowerShell `Start-Job`, it ended about 10 s in, and the service bound again before
+the screenshot.
+
+**A switch to another Android user unbinds the service, and that explains every unbind on 2026-11-11.** The debug
+build's `lifecycle.log` read on the phone the same day showed five unbinds of the connected instance, all in one
+pid (10625, so the process was never killed). The `Review` user, made for the review video, was created at 14:04.
+`dumpsys user` dates its start to 14:50:43, which is the second unbind's time to the second. It dates its last
+entry to the foreground to 15:12:50, against an unbind at 15:12:51.365. The events buffer has `uc_switch_user: 0`
+at 16:21:34.700, and the service was created and connected again at 16:21:37. So for 69 minutes the service was
+enabled and unbound with its process alive, which is the 2026-10-31 shape. Here, though, user 0 was in the
+background, so nothing of its UI was on screen to miss the pad. The 14:46:57 unbind fits an earlier switch to
+`Review`, because `dumpsys user` keeps only the last one. The 16:38 and 16:39 unbinds are the `uiautomator events`
+measurement above. The `Review` user did not exist on 2026-10-31, so it is not that day's cause. Those log lines
+rotated out long ago, and that day's cause stays unknown. The ring file is in place, so the next time the tile
+opens the app in the owner's own user, read `run-as dev.mnaoumov.selectionpad cat files/lifecycle.log` on a debug
+build (or `dumpsys activity service`/**Share diagnostic log** on a release one), and compare the unbind's time
+with `dumpsys user` and `logcat -b events | Select-String uc_switch_user`.
+
 **`lifecycle.log` from a release build: `run-as` is refused there, so the app gives the ring out two other
 ways (2026-11-11).** On the Play build `run-as` answers `package not debuggable`, and the phone cannot take a
 debug build over the Play one (*The Play build cannot be overwritten by a debug install*). Neither way adds a
