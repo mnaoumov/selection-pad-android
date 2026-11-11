@@ -4383,8 +4383,20 @@ the tile removed (`cmd statusbar remove-tile`), with the dialog brought up by th
 offer (`tileOffered` false). The log read `aside: hiding the pad for the add-tile dialog`. 30 s later the
 window list had `ComponentSystemUIDialog` and no pad window, and the screenshot showed both buttons
 clear. `Don't add tile` answered 0, and `Add tile` answered 2 in another run. Each time the log read
-`aside: done with the add-tile dialog`, then `lock: showing the pad`, and the pad was back. The phone has
-not run it yet.
+`aside: done with the add-tile dialog`, then `lock: showing the pad`, and the pad was back.
+
+**The phone confirms it (2026-11-11, OnePlus 15, the Play internal-test build, `versionCode` 1).** The pad
+was docked at the bottom and showing, the tile was taken out with `cmd statusbar remove-tile`, and the
+launcher's **Quick Settings tile** switch was turned on:
+
+| answer | result |
+|---|---|
+| `Don't add tile` | `aside: hiding the pad for the add-tile dialog`. The screenshot showed SystemUI's dialog over the bottom of the screen, with both buttons clear and no pad. Then `aside: done with the add-tile dialog`, `lock: showing the pad`, `tile: add request answered 0`, and the pad was docked again |
+| `Add tile` | the same hide, then `done`, `showing the pad`, `answered 2`, `tile: added to the panel` |
+| `✕` first, the tile removed, then `Add tile` | no `hiding` line, because there was nothing on screen to hide. Then `done`, `answered 2`, `added to the panel`, with no `showing the pad`. The pad stayed closed |
+
+One more thing showed up. After `remove-tile`, the switch kept reading on until the launcher screen
+resumed again, because it is refreshed on resume and nothing else.
 
 **The pad also steps aside while Settings is the foreground app (2026-11-11).** On the OnePlus 15, with the
 Play build, switching the service off in Settings → Accessibility → Selection Pad brings up OxygenOS's
