@@ -4256,7 +4256,21 @@ geometry is `PadPlacement`, unit-tested. Three things were measured on the `hand
   the top-docked pad `[0,84][1272,620]` and its `▼ pad` handle `[964,84][1272,252]`, the bottom pad
   `[0,2152][1272,2688]` and its `▲ pad` handle `[964,2520][1272,2688]`. One reading, taken while
   SystemUI's not-responding dialog was still up after a cold boot, had the bottom pad at
-  `[0,2236][1272,2772]`, under the navigation bar, until a rebind. That is tracked on its own.
+  `[0,2236][1272,2772]`, under the navigation bar, until a rebind. **The bar's inset is not
+  fixed while the guest is still settling, so a docked pad follows it (`Pad.refitDock`).** On a cold
+  boot of the `handset` profile (2026-11-11) the service connected 25 s in with `locked=true`, showed
+  the pad at the unlock with the correct offset, and then, for the next 5 minutes, while the Pixel
+  Launcher sat in an ANR, `WindowMetrics` reported the navigation-bar inset as 84 and 0 in turn, about
+  every 10-30 s. While it read 0 no gesture handle was drawn at all (the screenshot shows the pad on
+  the screen's bottom edge and nothing below it), so the system really had no bar then. The offset was
+  read once at layout, so the pad kept whichever value it was built with. Now `refitDock` re-reads it
+  on every `TYPE_WINDOWS_CHANGED`, from the root's `OnApplyWindowInsetsListener` (used only as a
+  trigger, since its values carry no bar insets, as the comment in `layoutFor` says), and 0.5, 2 and
+  10 s after the pad is shown. It moves the window only when the offset changed, and logs
+  `pad: docked offset 0 -> 84 (insets applied)`. In that boot it fired 16 times in 5 minutes, every
+  one from the insets listener, and the frame followed each change (`[0,2152][1272,2688]` and
+  `[0,2236][1272,2772]` in turn). An inset of 0 at the moment of a boot-time connect was not seen,
+  because the keyguard keeps the pad hidden until the unlock. The phone has not run it yet.
 - **The header buttons are only as wide as their captions, but at least 48 dp.** Four `Button`s at
   their default 88 dp minimum took 308 px each, so the status line was a 40 px column, its text wrapped
   a letter a line, and the pad grew to half the screen.
