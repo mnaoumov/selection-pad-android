@@ -32,23 +32,39 @@ class PadTileService : TileService() {
    * Whether the tile is in the panel is known only here, so the launcher's switch reads what these
    * record. SystemUI binds a tile to listen only while it is in the panel, which also covers a tile
    * added before this tracking existed.
+   *
+   * The launcher screen reads the flag on resume, and the tile can come and go while that screen is
+   * in front (SystemUI's edit mode, `cmd statusbar remove-tile`), so a change is also passed to the
+   * screen's live hook ([recordInPanel]).
    */
   override fun onTileAdded() {
     super.onTileAdded()
     Diag.log("tile: added to the panel")
-    settings().tileInPanel = true
+    recordInPanel(true)
   }
 
   override fun onTileRemoved() {
     super.onTileRemoved()
     Diag.log("tile: removed from the panel")
-    settings().tileInPanel = false
+    recordInPanel(false)
   }
 
   override fun onStartListening() {
     super.onStartListening()
-    settings().tileInPanel = true
+    recordInPanel(true)
     update()
+  }
+
+  /**
+   * Stores whether the tile is in the panel, and tells the launcher screen when that changed. Only
+   * the screen's hook is called, not [AscAccessibilityService.refreshToggles], whose tile refresh
+   * asks SystemUI to bind this tile again. Tile callbacks run on the main thread, as the hook needs.
+   */
+  private fun recordInPanel(inPanel: Boolean) {
+    val settings = settings()
+    if (settings.tileInPanel == inPanel) return
+    settings.tileInPanel = inPanel
+    AscAccessibilityService.onToggled?.invoke()
   }
 
   private fun settings() = PadSettings(getSharedPreferences(PadSettings.FILE, MODE_PRIVATE))
