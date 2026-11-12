@@ -601,6 +601,32 @@ mechanism rather than chosen: see the entry below. A tap is one step, a press he
 long-press timeout arms a run that starts when the finger lifts, and any touch stops a run — which
 costs nothing, because that touch would end the run's tracking anyway.
 
+**"Any touch" means anywhere on the pad window, not only a direction button.** Until 2026-11-11
+only the direction buttons asked to stop. On the OnePlus 15 a tap on the status line, which reads
+`repeating — tap to stop`, did nothing, and a held `→ char` ran on for about 25 s, across a line
+wrap and into the next node. Now the pad's root (`Pad.TouchGate`) stops a run, or a press in flight
+such as a document sweep, on every touch-down that reaches the window: the status line, the header,
+the gaps between buttons and every button. The touch that stops is consumed whole, so it does not
+also step, close the pad, open the app or swap the edge. It logs `pad: a touch-down at (x, y)
+stopped the run — consumed`, and the status line reads `stopped`. A second touch then works as
+usual. So a `✕` pressed during an `⤓ end` sweep stops the sweep first, and a second `✕` closes the
+pad. The stop takes effect between steps: a char step already in flight finishes, and no step
+follows it. Measured 2026-11-11 on the rig, the debug target's wrapped block, a held `→ char`:
+
+| touch during the run | result |
+|---|---|
+| a tap on the status line, (113, 1217) | `stop requested`, `touch-down at (113.0, 1217.0) stopped the run — consumed`; the step in flight ended `36 -> 37` and nothing followed |
+| a tap on `→ char` | `stopped the run — consumed`; the step in flight ended, no step after, 2 runs of 2 |
+| a tap on `✕`, (680, 1290) | the same, and the pad stayed up |
+| control: a tap on `← char` with no run | `44 -> 43`, 1 gesture |
+
+**On the rig an `adb shell input tap` made while the held pointer is down can be lost.** Shell
+taps and `dispatchGesture` are both injected input (`deviceId=-1`), and `InputDispatcher` logged
+`Inconsistent event` while they overlapped. 3 taps of 7 in that sitting (two on the status line, one
+on `→ char`) never reached the pad at all, with no line in the app's log, on a guest at a load
+average of 15-26. A real finger is another device, so the phone should not see this, but on the rig
+tap again when a tap leaves no line.
+
 **A chain's idle link: one pixel, VERTICAL, and the bookkeeping must follow it.** A chain has to keep
 dispatching to stay down, and while the loop waits for an announcement it has nowhere to go. Four
 measurements, in the order they were forced:

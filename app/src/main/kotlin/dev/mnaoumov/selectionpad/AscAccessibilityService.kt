@@ -549,13 +549,17 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     startStep(command)
   }
 
-  /** Any touch on a direction button stops a run. True when there was one to stop. */
+  /**
+   * Any touch on the pad window stops a run, or the press in flight. True when there was one to stop,
+   * so the pad consumes that touch instead of letting it step.
+   */
   private fun onStopRepeat(): Boolean {
     val wasRunning = repeating != null
     repeating = null
     // A document sweep is one press of many pages, so it is stopped the same way a run is.
-    if (busy && ::driver.isInitialized) driver.requestStop()
-    return wasRunning
+    val wasBusy = busy
+    if (wasBusy && ::driver.isInitialized) driver.requestStop()
+    return wasRunning || wasBusy
   }
 
   private fun step(command: PadCommand) {
