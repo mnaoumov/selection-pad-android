@@ -4436,8 +4436,13 @@ disabled the component instead of offering the tile. Now `PadTileService` calls 
 changes `tileInPanel`. It calls only the hook, not `refreshToggles`, because the tile refresh in that
 would ask SystemUI to bind the tile again. Measured 2026-11-11 on the rig, with the launcher screen in
 front the whole time: `remove-tile` logged `tile: removed from the panel`, then the screen's refresh
-26-176 ms later, and the switch read off. `add-tile` then turned it back on the same way. The phone has
-not run it yet. **A guest that has just cold-booted on a loaded machine can ignore `cmd statusbar`
+26-176 ms later, and the switch read off. `add-tile` then turned it back on the same way. **The phone
+confirms it (2026-11-11, OnePlus 15, the debug build of `b92fa96`, installed after the Play build was
+uninstalled).** `MainActivity` stayed the top resumed activity throughout. `add-tile` showed no dialog,
+and the switch read on. `remove-tile` turned the switch off at once, with nobody touching the phone, and a
+second `add-tile` turned it on again. That re-add put the tile FIRST among the panel's tiles, not last. The
+`tile:` log lines could not be read there, because OxygenOS's logd dropped the app's logcat (*The test
+rig*) and the ring file does not keep them, so the evidence is the switch as seen on screen. **A guest that has just cold-booted on a loaded machine can ignore `cmd statusbar`
 entirely:** with a load average of 30-70 and SystemUI restarting, `remove-tile` and `set-tiles` left
 `sysui_qs_tiles` unchanged for 10 minutes, and worked on a later boot.
 
