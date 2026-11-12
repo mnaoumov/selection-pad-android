@@ -6,13 +6,17 @@ YouTube as **unlisted** and the link goes in the declaration form (see `console-
 
 It has to show, in this order, with nothing cut between the steps:
 
-1. **Launching the app from the launcher.** The disclosure screen is the first thing it shows.
-2. **The disclosure, readable.** Scroll it slowly, top to bottom, so the whole text is on screen at
-   some point. It must be the app's own screen, during normal use — not a settings page, not the
-   privacy policy.
+1. **Launching the app from the launcher.** The consent step, with the full disclosure, is the
+   first thing it shows. It shows only until the user agrees or the service is on, so record on a
+   fresh install, or clear the app's storage first (Settings → Apps → Selection Pad → Storage →
+   Clear storage) with the service off.
+2. **The disclosure, readable.** It fits one screen, so hold on it for a few seconds. It must be
+   the app's own screen, during normal use — not a settings page, not the privacy policy.
 3. **The affirmative choice.** Press *"I understand — open Accessibility settings"*. Showing
    *"No thanks"* first, then relaunching and agreeing, is better still: it proves the choice is a
-   real one.
+   real one. After *"I understand"* the launcher opens on its normal screen from then on, with the
+   disclosure behind its **Accessibility disclosure** button, so a retake needs the storage cleared
+   again.
 4. **Turning the service on**, in the Accessibility settings page the button opened: the
    **Selection Pad** row, its switch, and Android's own confirmation dialog.
 5. **The feature.** Open a web page in Chrome, long-press a word, and use the pad: a few character

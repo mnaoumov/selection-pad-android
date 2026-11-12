@@ -1,6 +1,7 @@
 package dev.mnaoumov.selectionpad
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
@@ -24,6 +25,9 @@ import android.widget.Toast
  * the disclosure must appear during normal use, must ask for affirmative consent, and is not
  * satisfied by the privacy policy. It also has to be demonstrable in the review video, so the flow
  * is deliberately linear — read, agree, then and only then the settings link.
+ *
+ * That consent step is all the screen shows until the user agrees or the service is on
+ * ([Disclosure]). After that it opens on the pad's controls, with the disclosure behind a button.
  */
 class MainActivity : Activity() {
 
@@ -31,15 +35,16 @@ class MainActivity : Activity() {
     super.onCreate(savedInstanceState)
     SystemBars.beforeContent(this)
 
-    column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+    consentColumn = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-    titleView = TextView(this).apply {
-      text = getString(R.string.disclosure_title)
-      textSize = 22f
-    }
-    column.addView(titleView)
+    consentColumn.addView(
+      TextView(this).apply {
+        text = getString(R.string.disclosure_title)
+        textSize = 22f
+      }
+    )
 
-    column.addView(
+    consentColumn.addView(
       TextView(this).apply {
         text = getString(R.string.disclosure_body)
         textSize = 15f
@@ -47,10 +52,12 @@ class MainActivity : Activity() {
       }
     )
 
-    column.addView(
+    consentColumn.addView(
       Button(this).apply {
         text = getString(R.string.disclosure_agree)
         setOnClickListener {
+          settings.consentGiven = true
+          Diag.log("launcher: consent recorded")
           Toast.makeText(this@MainActivity, R.string.consent_recorded, Toast.LENGTH_LONG).show()
           startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
@@ -62,7 +69,7 @@ class MainActivity : Activity() {
      * prominent-disclosure requirement is an affirmative choice, and a choice needs a second
      * option. Declining changes nothing — the service stays off because nothing turned it on.
      */
-    column.addView(
+    consentColumn.addView(
       Button(this).apply {
         text = getString(R.string.disclosure_decline)
         setOnClickListener {
@@ -75,25 +82,20 @@ class MainActivity : Activity() {
     /*
      * Play requires the privacy policy to be linked "on your store listing and within your app"
      * (Console, App content → Privacy policy). It sits with the disclosure because that is the screen
-     * a reviewer reads. A VIEW intent hands the URL to a browser, so the app itself still needs no
-     * INTERNET permission.
+     * a reviewer reads, and on the normal screen too.
      */
+    consentColumn.addView(privacyPolicyButton())
+
+    column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
     column.addView(
-      Button(this).apply {
-        text = getString(R.string.privacy_policy)
-        setOnClickListener {
-          val page = Uri.parse(PRIVACY_POLICY_URL)
-          runCatching { startActivity(Intent(Intent.ACTION_VIEW, page)) }
-            .onFailure {
-              Toast.makeText(
-                this@MainActivity,
-                getString(R.string.privacy_policy_no_browser, PRIVACY_POLICY_URL),
-                Toast.LENGTH_LONG,
-              ).show()
-            }
-        }
+      TextView(this).apply {
+        text = getString(R.string.app_name)
+        textSize = 22f
       }
     )
+
+    column.addView(offRow)
 
     /*
      * The way back from the pad's own close button.
@@ -120,6 +122,18 @@ class MainActivity : Activity() {
     column.addView(togglesRow)
     column.addView(switchedOffRow)
     column.addView(batteryRow)
+
+    /*
+     * The disclosure on request, once consent is recorded or the service is on (owner, 2026-11-11).
+     * Play asks for it before the grant, which the consent step does, not on every visit.
+     */
+    column.addView(
+      Button(this).apply {
+        text = getString(R.string.disclosure_link)
+        setOnClickListener { showDisclosure() }
+      }
+    )
+    column.addView(privacyPolicyButton())
 
     /*
      * The lifecycle ring (`Diag.record`) is what says why the service stopped running, and on the Play
@@ -153,35 +167,115 @@ class MainActivity : Activity() {
       }
     )
 
-    scroll = ScrollView(this).apply { addView(column) }
-    SystemBars.fit(this, scroll, column, contentEdges())
+    root = LinearLayout(this).apply {
+      orientation = LinearLayout.VERTICAL
+      addView(consentColumn)
+      addView(column)
+    }
+    scroll = ScrollView(this).apply { addView(root) }
+    SystemBars.fit(this, scroll, root, contentEdges())
     setContentView(scroll)
   }
 
   private lateinit var scroll: ScrollView
+  private lateinit var root: LinearLayout
+
+  /** The consent step: the full disclosure, "I understand", "No thanks" and the privacy policy. */
+  private lateinit var consentColumn: LinearLayout
+
+  /** The normal screen, shown once consent is recorded or the service is on ([Disclosure]). */
   private lateinit var column: LinearLayout
-  private lateinit var titleView: TextView
+
+  private var screen: Disclosure.Screen? = null
+
+  /** Shows the consent step or the normal screen, whichever [Disclosure] picks for the state now. */
+  private fun showScreen() {
+    val next = Disclosure.screen(settings.consentGiven, serviceEnabled())
+    consentColumn.visibility = if (next == Disclosure.Screen.CONSENT) View.VISIBLE else View.GONE
+    column.visibility = if (next == Disclosure.Screen.MAIN) View.VISIBLE else View.GONE
+    if (next != screen) {
+      screen = next
+      Diag.log("launcher: showing the ${if (next == Disclosure.Screen.CONSENT) "consent step" else "normal screen"}")
+    }
+  }
+
+  /** The disclosure on request, from the normal screen. Reading it records nothing and changes nothing. */
+  private fun showDisclosure() {
+    Diag.log("launcher: showing the disclosure on request")
+    AlertDialog.Builder(this)
+      .setTitle(R.string.disclosure_link)
+      .setMessage(R.string.disclosure_body)
+      .setPositiveButton(android.R.string.ok, null)
+      .show()
+  }
 
   /**
-   * Logs whether the first line starts below the status bar and the last view ends above the
-   * gesture bar once scrolled to the end, so the rig can check the disclosure without reading a
-   * screenshot. Rectangles and verdicts only, never the text.
+   * The privacy policy link. A VIEW intent hands the URL to a browser, so the app itself still needs
+   * no INTERNET permission.
+   */
+  private fun privacyPolicyButton() = Button(this).apply {
+    text = getString(R.string.privacy_policy)
+    setOnClickListener {
+      val page = Uri.parse(PRIVACY_POLICY_URL)
+      runCatching { startActivity(Intent(Intent.ACTION_VIEW, page)) }
+        .onFailure {
+          Toast.makeText(
+            this@MainActivity,
+            getString(R.string.privacy_policy_no_browser, PRIVACY_POLICY_URL),
+            Toast.LENGTH_LONG,
+          ).show()
+        }
+    }
+  }
+
+  /**
+   * Logs whether the first line starts below the status bar, whether the last view ends above the
+   * gesture bar once scrolled to the end, and whether the screen fits without scrolling (the consent
+   * step should), so the rig can check it without reading a screenshot. Rectangles and verdicts
+   * only, never the text.
    */
   private fun logFit() {
     val bars = SystemBars.barsOf(scroll)
-    val last = (column.childCount - 1 downTo 0).map { column.getChildAt(it) }
+    val shown = if (consentColumn.visibility == View.VISIBLE) consentColumn else column
+    val last = (shown.childCount - 1 downTo 0).map { shown.getChildAt(it) }
       .first { it.visibility == View.VISIBLE }
     // The scroll view fills the window, so its padding is where the viewport sits in the window.
-    val top = scroll.paddingTop + titleView.top - scroll.scrollY
+    val top = scroll.paddingTop + shown.top + shown.getChildAt(0).top - scroll.scrollY
     val viewport = scroll.height - scroll.paddingTop - scroll.paddingBottom
-    val bottom = SystemBars.bottomAtEnd(last.bottom, column.height, scroll.paddingTop, viewport)
+    val bottom = SystemBars.bottomAtEnd(shown.top + last.bottom, root.height, scroll.paddingTop, viewport)
     val starts = SystemBars.startsClear(top, bars.top)
     val ends = SystemBars.endsClear(bottom, scroll.height, bars.bottom)
+    val scrolls = root.height > viewport
     Diag.log(
-      "disclosure fit: first line at y $top against a top bar of ${bars.top} (clear=$starts), " +
-        "last view at y $bottom scrolled to the end, in a ${scroll.height} px window with a " +
-        "bottom bar of ${bars.bottom} (clear=$ends)"
+      "disclosure fit (${if (shown == consentColumn) "consent step" else "normal screen"}): first line at " +
+        "y $top against a top bar of ${bars.top} (clear=$starts), last view at y $bottom scrolled to " +
+        "the end, in a ${scroll.height} px window with a bottom bar of ${bars.bottom} (clear=$ends), " +
+        "content ${root.height} px in a ${viewport} px viewport (scrolls=$scrolls)"
     )
+  }
+
+  /**
+   * Says that the service is off and where to turn it on, on the normal screen after consent is
+   * recorded. [switchedOffRow] covers a service that has run before and was switched off.
+   */
+  private val offRow: LinearLayout by lazy {
+    LinearLayout(this).apply {
+      orientation = LinearLayout.VERTICAL
+      setPadding(0, PADDING, 0, 0)
+      visibility = View.GONE
+      addView(
+        TextView(this@MainActivity).apply {
+          text = getString(R.string.service_off_body)
+          textSize = 15f
+        }
+      )
+      addView(
+        Button(this@MainActivity).apply {
+          text = getString(R.string.switched_off_settings)
+          setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        }
+      )
+    }
   }
 
   /**
@@ -491,7 +585,7 @@ class MainActivity : Activity() {
           text = getString(R.string.switched_off_by_me)
           setOnClickListener {
             settings.serviceConnectedOnce = false
-            switchedOffRow.visibility = View.GONE
+            showOffRows()
           }
         }
       )
@@ -527,6 +621,17 @@ class MainActivity : Activity() {
     }
   }
 
+  /**
+   * The switched-off row when the service ran before and is off now, and the plain off row when it
+   * never ran: one or the other, never both.
+   */
+  private fun showOffRows() {
+    val off = !serviceEnabled()
+    val switchedOff = off && settings.serviceConnectedOnce
+    switchedOffRow.visibility = if (switchedOff) View.VISIBLE else View.GONE
+    offRow.visibility = if (off && !switchedOff) View.VISIBLE else View.GONE
+  }
+
   private fun showNotRunningRow() {
     val notRunning = ServiceStatus.state(this) == ServiceStatus.State.NOT_RUNNING
     if (notRunningRow.visibility == (if (notRunning) View.VISIBLE else View.GONE)) return
@@ -547,7 +652,13 @@ class MainActivity : Activity() {
    * the pad ([PadPlacement.clearanceDp]).
    */
   private fun contentEdges(): Edges {
-    val (top, bottom) = PadPlacement.clearanceDp(settings.mode, settings.dockEdge, settings.minimised, PAD_CLEARANCE_DP)
+    // With no pad on screen (the consent step, as a rule) there is nothing to clear, so the
+    // disclosure can fit without scrolling.
+    val (top, bottom) = if (AscAccessibilityService.padShowing() == true) {
+      PadPlacement.clearanceDp(settings.mode, settings.dockEdge, settings.minimised, PAD_CLEARANCE_DP)
+    } else {
+      0 to 0
+    }
     val density = resources.displayMetrics.density
     return Edges(PADDING, PADDING * 2 + (top * density).toInt(), PADDING, (bottom * density).toInt())
   }
@@ -562,12 +673,12 @@ class MainActivity : Activity() {
       AscAccessibilityService.comeBack()
     }
     // The pad may have moved edge since this screen was built.
-    contentEdges().let { column.setPadding(it.left, it.top, it.right, it.bottom) }
+    contentEdges().let { root.setPadding(it.left, it.top, it.right, it.bottom) }
     // Re-read on every return, so the row goes away once the user has granted the exemption.
     val exempt = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
     batteryRow.visibility = if (exempt) View.GONE else View.VISIBLE
-    val switchedOff = settings.serviceConnectedOnce && !serviceEnabled()
-    switchedOffRow.visibility = if (switchedOff) View.VISIBLE else View.GONE
+    showScreen()
+    showOffRows()
     if (ServiceStatus.state(this) == ServiceStatus.State.NOT_RUNNING) {
       column.postDelayed({ showNotRunningRow() }, NOT_RUNNING_GRACE_MS)
     } else {
@@ -587,6 +698,8 @@ class MainActivity : Activity() {
     }
     column.post { logFit() }
     AscAccessibilityService.onToggled = {
+      showScreen()
+      showOffRows()
       showNotRunningRow()
       showToggles()
     }

@@ -27,6 +27,13 @@ class PadSettingsTest {
   }
 
   @Test
+  fun consentIsNotGivenUntilTheUserAgrees() {
+    assertFalse(reconnect().consentGiven)
+    reconnect().consentGiven = true
+    assertTrue(reconnect().consentGiven)
+  }
+
+  @Test
   fun aClosedPadStaysClosedAfterARestart() {
     reconnect().padVisible = false
     assertFalse(reconnect().padVisible)
