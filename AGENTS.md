@@ -4475,6 +4475,31 @@ answered 1 (already added), then 2 (added) through SystemUI's dialog after `cmd 
 The switch put `PadTileService` under `disabledComponents` and the tile left the panel. Drive it with
 `adb shell cmd statusbar add-tile|click-tile|remove-tile dev.mnaoumov.selectionpad/.PadTileService`.
 
+**To put the tile back after an uninstall, run `.\scripts\pad.ps1 tile`, not `add-tile`.** An uninstall
+drops the tile from the panel, and `install -r` (the phone loop) keeps it. On OxygenOS `add-tile` puts it
+at position 7 of 26, straight after the fixed `wifi`, `cell`, `innerFake_*` and `ringermode` slots, so it
+shows FIRST among the owner's tiles. The owner keeps it last. OxygenOS keeps the panel order in
+`settings secure oplus_sysui_qs_tiles`. AOSP's `sysui_qs_tiles` is stale there, and it did not list the
+tile while the panel showed it. A `settings put` of `oplus_sysui_qs_tiles` does not reach a running
+SystemUI: on 2026-11-11 the key read last while the owner still saw the tile first, until SystemUI next
+started. `cmd statusbar set-tiles <list>` does reach it. SystemUI applies the whole list live and saves
+it to the key itself. `pad.ps1 tile` reads the list (`oplus_sysui_qs_tiles`, else `sysui_qs_tiles`),
+takes the tile out, appends it, `set-tiles` the result and reads it back. Measured 2026-11-12 on the
+OnePlus 15. The in-memory order is the `tileConfigs` of `UserQSTileAndConfig(userId=0` in `dumpsys
+activity service com.android.systemui/.SystemUIService`. A `set-tiles` that moved the tile one slot
+earlier showed there at once. Then:
+
+| state before | `pad.ps1 tile` |
+|---|---|
+| already last | `already last of 26`, nothing written |
+| `remove-tile` (an uninstall's state) | `now last of 26 (was not in the panel)` |
+| `add-tile` | `now last of 26 (was 7 of 26)`; the in-memory order ends `screenrecord`, then the tile |
+
+The owner's list afterwards was byte for byte the one before. The rig's stock path (`sysui_qs_tiles`) was
+not run in this sitting. The app's own `requestAddTileService` dialog appends on the phone (the
+2026-11-09 pass). **OxygenOS's Quick Settings has no edit (pencil) icon (owner, 2026-11-11):** a tile is
+moved by pressing and holding it, then dragging it. The app's tile toasts say both.
+
 **The phone confirms it (2026-11-09, OnePlus 15, the debug build of `c58d36f`).** The tile was in the
 panel from an earlier pass, in the last slot of the second page. OxygenOS does not list it in
 `sysui_qs_tiles`, so look at the panel, not at that setting. The app logged nothing until a fresh process

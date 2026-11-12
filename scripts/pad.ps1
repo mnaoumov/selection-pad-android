@@ -11,16 +11,22 @@
   you rely on — a password manager's autofill service, say — is preserved either way, and running it
   twice does nothing the first run did not.
 
+  `tile` puts the Quick Settings tile LAST in the panel, adding it when an uninstall dropped it. A
+  plain `cmd statusbar add-tile` puts it first among the owner's tiles on OxygenOS, and writing the
+  order setting while SystemUI runs is ignored until SystemUI restarts, so this goes through
+  `cmd statusbar set-tiles`, which SystemUI applies live (measured 2026-11-12, OnePlus 15).
+
 .EXAMPLE
   .\scripts\pad.ps1 on
   .\scripts\pad.ps1 off
   .\scripts\pad.ps1 status
+  .\scripts\pad.ps1 tile
 #>
 
 [CmdletBinding()]
 param(
   [Parameter(Position = 0)]
-  [ValidateSet('on', 'off', 'status')]
+  [ValidateSet('on', 'off', 'status', 'tile')]
   [string] $Action = 'status',
 
   # Only needed when more than one device is attached.
@@ -118,8 +124,54 @@ function Set-Enabled([string[]] $services) {
   }
 }
 
+<#
+  The panel's tile order. OxygenOS keeps it in `oplus_sysui_qs_tiles`, and AOSP's `sysui_qs_tiles`
+  there is stale (it did not even list our tile while the panel showed it). Stock Android has only
+  the AOSP key.
+#>
+function Get-TileList {
+  [OutputType([string[]])]
+  param()
+
+  foreach ($key in @('oplus_sysui_qs_tiles', 'sysui_qs_tiles')) {
+    $value = "$(& adb @adb shell settings get secure $key)".Trim()
+    if ($value -ne '' -and $value -ne 'null') {
+      return , [string[]]@($value -split ',' | Where-Object { $_ -ne '' })
+    }
+  }
+  throw 'Neither oplus_sysui_qs_tiles nor sysui_qs_tiles holds a tile list.'
+}
+
+<#
+  Put our tile at the end of the panel, live.
+
+  `cmd statusbar add-tile` inserts it after OxygenOS's fixed `innerFake_*` and `ringermode` slots,
+  i.e. FIRST among the user's tiles. A `settings put` of the order key is not read by a running
+  SystemUI, which then overwrites it with its in-memory order. `set-tiles` hands SystemUI the whole
+  list, which it applies at once and saves to the key itself.
+#>
+function Move-TileToEnd {
+  $tile = 'custom(dev.mnaoumov.selectionpad/.PadTileService)'
+  $before = Get-TileList
+  $wanted = [string[]](@($before | Where-Object { $_ -ne $tile }) + @($tile))
+  if (($before -join ',') -eq ($wanted -join ',')) {
+    Write-Host "The tile is already last of $($before.Count)."
+    return
+  }
+
+  # The inner quotes stop the device shell splitting on the parentheses.
+  & adb @adb shell cmd statusbar set-tiles "'$($wanted -join ',')'" | Out-Null
+  Start-Sleep -Milliseconds 800
+  $after = Get-TileList
+  if (($after -join ',') -ne ($wanted -join ',')) {
+    throw "SystemUI did not keep the new order. Now: $($after -join ',')"
+  }
+  $was = if ($before -contains $tile) { "was $([array]::IndexOf($before, $tile) + 1) of $($before.Count)" } else { 'was not in the panel' }
+  Write-Host "The tile is now last of $($after.Count) ($was)."
+}
+
 $enabled = Get-Enabled
-$ours = @($enabled | Where-Object { $_ -in $components })
+$ours =@($enabled | Where-Object { $_ -in $components })
 $others = @($enabled | Where-Object { $_ -notin $components })
 
 switch ($Action) {
@@ -146,5 +198,8 @@ switch ($Action) {
     Write-Host "Selection Pad: $state"
     Write-Host 'Other accessibility services left alone:'
     $others | ForEach-Object { Write-Host "  $_" }
+  }
+  'tile' {
+    Move-TileToEnd
   }
 }

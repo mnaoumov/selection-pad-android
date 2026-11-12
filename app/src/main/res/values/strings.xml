@@ -30,9 +30,9 @@
     <string name="tile_service_off">Tap to set up</string>
     <string name="tile_not_running">Not running — tap for help</string>
     <string name="tile_added">The Selection Pad tile is in Quick Settings.</string>
-    <string name="tile_added_at_end">The Selection Pad tile is added at the end of Quick Settings, on its last page. To move it, swipe down twice, tap the pencil and drag it.</string>
+    <string name="tile_added_at_end">The Selection Pad tile is added at the end of Quick Settings, on its last page. To move it, swipe down twice, then press and hold it (or tap the pencil, on phones that have one) and drag it.</string>
     <string name="tile_removed">The Selection Pad tile is out of Quick Settings.</string>
-    <string name="tile_add_failed">Add it by hand: swipe down twice, tap the pencil, and drag “Selection Pad” into the panel.</string>
+    <string name="tile_add_failed">Add it by hand: swipe down twice, press and hold a tile (or tap the pencil, on phones that have one), and drag “Selection Pad” into the panel.</string>
     <string name="tile_switch">Quick Settings tile</string>
     <string name="button_warning">Selection Pad has an accessibility shortcut (the floating accessibility button, a gesture or the volume keys). That shortcut does not show or hide the pad: it turns the whole Selection Pad service off and on, and Android may not let you turn it back on. Remove the shortcut and use the tile or the notification instead.</string>
     <string name="button_warning_open">Remove the shortcut in Accessibility settings</string>
