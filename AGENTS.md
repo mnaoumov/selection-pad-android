@@ -3232,6 +3232,14 @@ with `zone` gone. It now takes the header row's height (the buttons set it) and 
 fit, from 12 down to 8 sp (`STATUS_MIN_SP`). The edge message is now `the screen edge took the touch —
 drag this handle inward by hand once`, because a hand drag is what gets the pad going again.
 
+Measured 2026-11-12 on the rig, the debug target's `alpha bravo charlie delta echo`, the START swapped
+onto offset 0 (grabbed at x 14, inside the 60 px left zone):
+
+| run | result |
+|---|---|
+| swallow marker on, `→ char` ×2 | each press: one dropped touch-down, then `InEdgeZone` in 67-106 ms with 1 gesture. The second press tried again rather than being refused with 0 gestures. The screenshot showed the whole edge message in 4 lines inside the header, beside `menu on` |
+| no marker, `→ char`, `← char`, `→ char`, `← char` | `0 -> 1 -> 0 -> 1 -> 0`, 1 gesture each, 0.9-1.5 s, each zone grab `answered` |
+
 **A grow from the document's first or last caret has nowhere to go. Unless it touches nothing, its
 silence teaches the verdict wrong.** Measured 2026-10-13 on the rig (Chrome 143, no marker, so the zone
 takes the grab): with the START on `0..22` of a served page's first row, `← char` grabbed at x 14,
