@@ -663,8 +663,22 @@ stop as the held grab is judged`). `rm` it and rebind to undo. Measured 2026-11-
 | marker on, `→ char` from 6 | the grab landed on 7, its target, so no lift: `Moved(6, 7)` in 1 gesture; status `moved 6 → 7 — stopped` |
 | marker on, `→ char` from 7, 3 runs of 3 | the grab silent, then `stop: ... lifting at 7`, `Moved(7, 7)` in 1.6-2.8 s and 1 gesture; the screenshot showed `Chrome ` still selected and `didn't move — stopped` |
 
-The guest was at a load average of 15-60 through the sitting, so the times are long. The phone, where
-a real stop touch reaches the pad, is still to confirm it.
+The guest was at a load average of 15-60 through the sitting, so the times are long.
+
+**The phone confirms it with a real stop touch (2026-11-11, OnePlus 15, the debug build of `41c2494`,
+Chrome on `en.wikipedia.org/wiki/Text_editor`, the old announcement in effect).** Long-press
+`interactive` (`4..15`), then `→ char` (`15 -> 16`, 1 gesture). The next `→ char` leaves the node for
+the link `software`, and its held grab is silent there. Without a stop, that press pushes on with three
+`inline: push` moves and a pull back, and ends `Moved(16, 1, crossedNode=true)` in 1.7 s and 5 gestures.
+With a tap on the status line at (216, 2290) 0.35 s after the press (`adb shell "input tap 636 2448;
+sleep 0.35; input tap 216 2290"`), Chrome was force-stopped and reloaded before runs 2 and 3:
+
+| press | result |
+|---|---|
+| that `→ char`, 3 runs of 3 | `stop requested`, `touch-down at (216.0, 2290.0) stopped the run — consumed`, the grab `-> nothing`, then `stop: a touch asked the press to stop — lifting at 16 rather than pushing on`, `Moved(16, 16)` in 640-645 ms and 1 gesture; the screenshot showed `interactive ` still selected and the status line `didn't move — stopped` |
+| a held `→ char` run, the status line tapped 2.5 s in | the stop landed while the step into `software` (`1 -> 2`) was in flight, and that grab landed on its target, so there was no lift: `Moved(1, 2)` in 1 gesture, status `moved 1 → 2 — stopped` |
+
+Unlike the rig, the phone's shell taps made while the held pointer is down reached the pad every time.
 
 **On the rig an `adb shell input tap` made while the held pointer is down can be lost.** Shell
 taps and `dispatchGesture` are both injected input (`deviceId=-1`), and `InputDispatcher` logged
