@@ -10,7 +10,7 @@ import android.content.ComponentName
  * in its static config, Android ties the service's enabled state to its shortcut, so the floating
  * button was forced on and removing it switched the service off (see
  * `accessibility_service_config.xml`). Without the flag a shortcut turns the whole service off and
- * on, which a sideloaded build may not get back under ECM. So the launcher reads the assignment back
+ * on, and a service turned off that way has to be turned back on in Settings. So the launcher reads the assignment back
  * and, when there is one, warns and offers the page to remove it. No app can write that setting.
  */
 object ButtonShortcut {

@@ -62,12 +62,12 @@ Accessibility.
 A release bundle for Google Play is `./gradlew :app:bundleRelease`; `play/README.md` covers the upload
 key, which lives outside the repository, and everything else the listing needs.
 
-### One thing that will surprise you
+### Turning the service on after `adb install`
 
-On recent Android, an accessibility service installed by `adb install` is blocked from being enabled
-by **Enhanced Confirmation Mode**, which keys on install provenance: a sideload leaves
-`installerPackageName=null` and the toggle refuses. This is a property of how the APK was installed,
-not of the app. `AGENTS.md` has the full findings and the workarounds.
+Settings > Accessibility > Downloaded apps > Selection Pad has the service's switch, and turning it on
+goes through Android's own "full control" dialog. That holds for an `adb install` too: on the
+OnePlus 15 (2026-11-11) no restricted-setting block appeared. `scripts\pad.ps1 on` does the same from
+the command line. `AGENTS.md` has the measurement.
 
 ## Permissions
 

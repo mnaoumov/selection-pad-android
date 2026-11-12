@@ -13,7 +13,7 @@
     enabled exactly while it has a shortcut. ShortcutUtils.updateInvisibleToggleAccessibilityServiceEnableState
     turns the service OFF when its last shortcut goes, and on the phone the floating button showed
     with no shortcut picked by the user. So the button was forced on, and dragging it away
-    switched the whole service off, which a sideloaded build cannot turn back on under ECM.
+    switched the whole service off. That page type also has no switch, so Settings could not turn it back on.
     setServiceInfo cannot set the flag at runtime either (REQUEST_ACCESSIBILITY_BUTTON_CHANGE), so
     the system button cannot toggle the pad at all; the tile and the notification do that.
 

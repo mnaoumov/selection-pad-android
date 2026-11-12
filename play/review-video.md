@@ -24,11 +24,11 @@ About a minute and a half is plenty. No narration is needed; captions are option
 
 ## Where to record it
 
-**On a phone, with the app installed from Play** — an internal-testing release is enough. Step 4
-cannot be recorded any other way on a recent Android: an `adb install` is treated as sideloaded,
-and Enhanced Confirmation Mode then hides the service's switch entirely (`AGENTS.md` has the
-measurement). A build installed by Play is not blocked, and it is also exactly what a reviewer will
-run.
+**On a phone, preferably with the app installed from Play** — an internal-testing release is enough,
+and it is exactly what a reviewer will run. A build installed with `adb install` works too: on the
+OnePlus 15 (2026-11-11) its Settings page showed the **Selection Pad** switch, and turning it on went
+through Android's own "full control" dialog with no restricted-setting block (`AGENTS.md` has the
+measurement). Record the version the review is for.
 
 Record with the phone's own screen recorder, or over adb:
 

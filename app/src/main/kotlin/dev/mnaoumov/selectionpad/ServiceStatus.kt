@@ -18,7 +18,7 @@ import android.provider.Settings
  * **The app cannot get itself bound again.** Measured on the rig on 2026-11-01: flipping one of the
  * app's own components off and on, the accessibility service's included, left an unbound service
  * unbound and an inert bound one untouched. A component left disabled would make Android drop the
- * service from the enabled list, which on an ECM-restricted install the user cannot turn back on. So
+ * service from the enabled list, which the user would then have to turn back on in Settings. So
  * the toggles say what is wrong and what fixes it: turning the service off and on in Accessibility
  * settings, or restarting the phone, both of which bind every enabled service.
  */

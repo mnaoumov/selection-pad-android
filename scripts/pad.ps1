@@ -3,13 +3,9 @@
   Turn the Selection Pad's accessibility service on or off, by hand.
 
 .DESCRIPTION
-  There is no way to do this from Settings on this device, and that is not a bug in the app. Android's
-  Enhanced Confirmation Mode blocks the accessibility toggle for anything it considers sideloaded, and
-  it decides that from install provenance: an `adb install` leaves installerPackageName=null and
-  initiatingPackageName=com.android.shell, which ECM treats as untrusted. The toggle is then not
-  greyed out, it is absent — and on OxygenOS there is no "allow restricted settings" affordance to
-  clear it, nor can `appops` do it, because adb's uid lacks MANAGE_APP_OPS_MODES. A trusted install
-  source (Play) is the only real fix; until then, this script.
+  Settings > Accessibility > Downloaded apps > Selection Pad has the switch too, for an `adb install`
+  as well (measured on the OnePlus 15, 2026-11-11). This script is the quick way from a terminal,
+  with no taps and no confirmation dialog.
 
   It edits the enabled-services list in place rather than saving and restoring it, so whatever else
   you rely on — a password manager's autofill service, say — is preserved either way, and running it
