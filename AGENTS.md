@@ -3038,7 +3038,7 @@ three things:
   to escalate twelve drags from the same pixel, reaching inward up to 630 px. From the left edge that
   is the back gesture's own shape. Now, once a zone touch-down has been followed by no announcement,
   every later touch-down in a zone is dropped (`went unanswered — not touching`). The press then ends
-  with `the handle is in the screen edge's swipe zone` on the status line, instead of `lost the handle`
+  with the edge message (`the screen edge took the touch — drag this handle inward by hand once`) on the status line, instead of `lost the handle`
   or `didn't move`. A dropped drag now reports itself not completed, and every grab asks first (below),
   so the press stops at the first unanswered touch-down instead of waiting out its tries.
 
@@ -3213,6 +3213,32 @@ rose 42 px first (*every stroke that touches down in a side zone rises straight 
 logged `toolbar is still up` or ended `InEdgeZone`. So whether Chrome keeps its toolbar up for a touch
 that OxygenOS takes is still unmeasured, and the guard is shown only by the rig's
 `force-swallow-edge-zone` marker.
+
+**So nothing about the edge zone is remembered across presses any more (2026-11-12).** The
+per-connection verdict above (`edgeZoneSwallowsHere`) was written before the rise, and since the rise
+no phone case is known in which OxygenOS takes a zone stroke. So a learned `true` could only be a grab
+that missed, and it then refused every margin press until a rebind. On the OnePlus 15 (2026-11-10,
+Chrome, `exler.es/blog`) a selection starting at the left text margin (`10.11.2026 17:00`) could not
+have its START moved at all, and the status line blamed the edge zone. Now `edgeZoneSwallows` is true
+only when THIS press's zone touch-down went unanswered: the press stops there, as before, and the next
+press tries again. On a ROM that really swallows, each margin press pays its one touch-down (about
+0.5 s) instead of 0 gestures. The connection's finding is still logged (`side gesture zones: a
+touch-down there was answered|went unanswered`), and the 0-gesture rows in the tables above describe
+the old build.
+
+**The status line now fits the header and says what to do.** It was 12 sp with `WRAP_CONTENT` height,
+and a three-line status was cut off: on the phone it read `the handle is in the screen edge's swipe`,
+with `zone` gone. It now takes the header row's height (the buttons set it) and shrinks its text to
+fit, from 12 down to 8 sp (`STATUS_MIN_SP`). The edge message is now `the screen edge took the touch —
+drag this handle inward by hand once`, because a hand drag is what gets the pad going again.
+
+Measured 2026-11-12 on the rig, the debug target's `alpha bravo charlie delta echo`, the START swapped
+onto offset 0 (grabbed at x 14, inside the 60 px left zone):
+
+| run | result |
+|---|---|
+| swallow marker on, `→ char` ×2 | each press: one dropped touch-down, then `InEdgeZone` in 67-106 ms with 1 gesture. The second press tried again rather than being refused with 0 gestures. The screenshot showed the whole edge message in 4 lines inside the header, beside `menu on` |
+| no marker, `→ char`, `← char`, `→ char`, `← char` | `0 -> 1 -> 0 -> 1 -> 0`, 1 gesture each, 0.9-1.5 s, each zone grab `answered` |
 
 **A grow from the document's first or last caret has nowhere to go. Unless it touches nothing, its
 silence teaches the verdict wrong.** Measured 2026-10-13 on the rig (Chrome 143, no marker, so the zone

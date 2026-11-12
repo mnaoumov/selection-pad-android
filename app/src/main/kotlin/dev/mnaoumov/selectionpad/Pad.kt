@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.RelativeSizeSpan
+import android.util.TypedValue
 import android.view.Choreographer
 import android.view.ContextThemeWrapper
 import android.view.Gravity
@@ -412,6 +413,12 @@ class Pad(
       setTextColor(FOREGROUND)
       textSize = 12f
       gravity = Gravity.CENTER
+      /*
+       * The line takes the header's height, which the buttons set, and shrinks its text to fit.
+       * Left to grow, a three-line status was cut off: on the OnePlus 15 (2026-11-10) the edge-zone
+       * message read "the handle is in the screen edge's swipe", its last word gone.
+       */
+      setAutoSizeTextTypeUniformWithConfiguration(STATUS_MIN_SP, 12, 1, TypedValue.COMPLEX_UNIT_SP)
     }
 
     /*
@@ -427,7 +434,7 @@ class Pad(
     val header = LinearLayout(themed).apply { orientation = LinearLayout.HORIZONTAL }
     header.addView(
       statusView,
-      LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f),
+      LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f),
     )
     // The mask toggle lives beside the close button rather than in the direction grid: it is a
     // setting about the view, not a movement, and the grid is already five buttons wide.
@@ -685,6 +692,9 @@ class Pad(
 
     /** The least width of a header button ([compact]). */
     const val TOUCH_TARGET_DP = 48
+
+    /** The smallest size the status line shrinks to, in sp, so a long status still fits the header. */
+    const val STATUS_MIN_SP = 8
     const val FLOATING_X = 240
     const val FLOATING_Y = 1900
     const val PADDING = 16

@@ -615,7 +615,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
         } + stopped
       )
       // A stop touch ends the app's drag, so the silence after it says nothing about the edge zone.
-      if (!driver.stopWasRequested) learnEdgeZoneVerdict(outcome)
+      if (!driver.stopWasRequested) logEdgeZoneVerdict(outcome)
       busy = false
       // The press just moved the selection, so the toolbar has just moved too. After `busy` clears,
       // or the guard in refreshMask would skip it.
@@ -708,7 +708,6 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     if (!inSideZone(down)) return EdgeZoneDown.CLEAR
     if (edgeZoneUnanswered()) {
       Diag.log("  the last touch-down in a side gesture zone went unanswered — not touching (${down.x}, ${down.y})")
-      edgeZoneSwallowsHere = true
       return EdgeZoneDown.UNANSWERED
     }
     touchedEdgeZone = true
@@ -837,58 +836,36 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
   private var heldDownInEdgeZone = false
 
   /**
-   * Whether this ROM swallows a touch-down in a side gesture zone: null until a press has made one,
-   * then what that press found. Kept for the connection, not for ever, because "unanswered" can also
-   * be a grab that simply missed, and a wrong `true` would refuse every margin grab after it. A
-   * rebind clears it.
+   * Whether a stroke from [point] must not be made: it is in a side gesture zone, and this press's
+   * touch-down there already went unanswered.
    *
-   * It is what lets a press stop before it starts. Measured 2026-10-10 on the handset (OxygenOS), each
-   * press paid for re-learning it: `⤒ start` scrolled 294 px before its one grab, a right-margin
-   * `→ char` pushed a pointer Chrome never saw six times, and a left-margin one waited out twelve
-   * dropped tries. Stock Android takes the grab (the `handset` profile, 2026-10-05), so the first
-   * press of a connection has to try.
+   * **Only this press counts. Nothing is remembered across presses** (2026-11-12). Until then a press
+   * whose zone touch-down went unanswered taught the connection that "this ROM swallows", and every
+   * margin press after it was refused with nothing touched, until a rebind. That verdict was written
+   * before every zone stroke rose past the slop first ([edgeLead]), and since then no phone case is
+   * known in which OxygenOS takes such a stroke. So a learned `true` could only be a silent grab that
+   * simply missed, and it cost the user every margin handle for the rest of the connection: on the
+   * OnePlus 15 (2026-11-10, Chrome, exler.es) the START at the left margin could not be moved at all,
+   * and the status line blamed the edge zone. On a ROM that really does swallow, each margin press
+   * now pays its one touch-down, about half a second, before it stops.
    */
-  private var edgeZoneSwallowsHere: Boolean? = null
-
   override fun edgeZoneSwallows(point: PointF): Boolean {
     val p = onScreen(point)
-    if (!inSideZone(p)) return false
-    return when {
-      edgeZoneUnanswered() -> {
-        Diag.log("  (${p.x}, ${p.y}) is in a side gesture zone, and this press's touch-down there went unanswered")
-        edgeZoneSwallowsHere = true
-        true
-      }
-      edgeZoneSwallowsHere == true -> {
-        Diag.log("  (${p.x}, ${p.y}) is in a side gesture zone, and this ROM has swallowed a touch-down there")
-        true
-      }
-      else -> false
-    }
+    if (!inSideZone(p) || !edgeZoneUnanswered()) return false
+    Diag.log("  (${p.x}, ${p.y}) is in a side gesture zone, and this press's touch-down there went unanswered")
+    return true
   }
 
-  /** Updates [edgeZoneSwallowsHere] from a press that made a touch-down in a side zone. */
-  private fun learnEdgeZoneVerdict(outcome: Outcome) {
+  /** Logs what a press that made a touch-down in a side zone found there. Diagnostic only. */
+  private fun logEdgeZoneVerdict(outcome: Outcome) {
     if (!touchedEdgeZone) return
-    val verdict = when {
-      !edgeZoneUnanswered() -> false
-      outcome == Outcome.InEdgeZone || isStuck(outcome) -> true
-      else -> return
+    when {
+      !edgeZoneUnanswered() -> Diag.log("  side gesture zones: a touch-down there was answered")
+      outcome == Outcome.InEdgeZone || isStuck(outcome) -> Diag.log(
+        "  side gesture zones: a touch-down there went unanswered" +
+          if (locator.aimedByAverage) " (its aim was a box's average, which can simply miss)" else ""
+      )
     }
-    /*
-     * A grab aimed by a box's average can miss the handle outright, and a miss is as silent as a
-     * swallowed touch-down. Measured 2026-10-13 on the rig (stock Android, which takes such a grab): a
-     * cold Chromium `<p>`'s END placed by its block box at x 706, 186 px right of the handle, announced
-     * nothing, and every margin grab after it was refused for the rest of the connection.
-     */
-    if (verdict && locator.aimedByAverage) {
-      Diag.log("  side gesture zones: not learning from this press — its aim was a box's average, which can simply miss")
-      return
-    }
-    if (verdict != edgeZoneSwallowsHere) {
-      Diag.log("  side gesture zones: ${if (verdict) "this ROM swallows a touch-down there" else "a touch-down there was answered"}")
-    }
-    edgeZoneSwallowsHere = verdict
   }
 
   /** Whether this press dropped a touch-down because another app's window owned its pixel. */
@@ -1305,7 +1282,6 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     if (heldDownInEdgeZone && heldPointer.isHeld) noteToolbarAfterEdgeDown("held")
     if (heldDownInEdgeZone && heldPointer.isHeld && edgeZoneUnanswered()) {
       Diag.log("  held: the grab in a side gesture zone went unanswered — lifting rather than pushing on")
-      edgeZoneSwallowsHere = true
       heldPointer.releaseNow()
       return false
     }
@@ -1523,7 +1499,7 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     const val FORCE_STOP_AFTER_GRAB = "force-stop-after-grab"
 
     /** The status line for a press the side gesture zone stopped. */
-    const val EDGE_ZONE_STATUS = "the handle is in the screen edge's swipe zone"
+    const val EDGE_ZONE_STATUS = "the screen edge took the touch — drag this handle inward by hand once"
 
     /** How far [contentBand] walks up from a source node looking for the page's scroller. */
     const val MAX_ANCESTORS = 64
