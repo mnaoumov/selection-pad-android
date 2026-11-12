@@ -99,8 +99,7 @@ class MainActivity : Activity() {
      * The way back from the pad's own close button.
      *
      * Closing the pad hides the overlay and leaves the service connected, so putting it back is a
-     * method call rather than a trip through Accessibility settings — which matters because that
-     * switch is blocked by Enhanced Confirmation Mode for a sideloaded build.
+     * method call rather than a trip through Accessibility settings and its confirmation dialog.
      */
     column.addView(
       Button(this).apply {
@@ -262,8 +261,8 @@ class MainActivity : Activity() {
   /**
    * Shown only while the user has given the service an accessibility shortcut ([ButtonShortcut]).
    * The service does not request the accessibility button (see accessibility_service_config.xml),
-   * so such a shortcut turns the whole service off and on rather than the pad, and a sideloaded
-   * build may not be able to turn it back on. The row says so and opens the page to remove it.
+   * so such a shortcut turns the whole service off and on rather than the pad, and the user then
+   * has to turn it back on in Settings. The row says so and opens the page to remove it.
    */
   private val buttonWarning: LinearLayout by lazy {
     LinearLayout(this).apply {

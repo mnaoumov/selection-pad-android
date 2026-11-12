@@ -4,10 +4,11 @@ Everything the Play listing needs that can live in the repository: the listing t
 policy, the answers to the Console's declaration forms, the store graphics, and how to build and
 sign the bundle.
 
-**Play is not optional for this app.** On a recent Android, an accessibility service installed by
-`adb install` is treated as sideloaded, and Enhanced Confirmation Mode then hides its switch in
-Accessibility settings entirely — no user setting and no adb command lifts it. A trusted installer
-does, and Play is the one that matters. See `AGENTS.md` for the measurement.
+**Play is how this app reaches users.** An earlier reading said Enhanced Confirmation Mode hid the
+service's switch from any `adb install`, which would have made Play the only way to turn it on. That
+missing switch was the accessibility-button flag's settings page, not ECM: since the flag was removed,
+an `adb install` on the OnePlus 15 gets the switch and Android's own confirmation dialog (2026-11-11).
+See `AGENTS.md` for the measurement.
 
 | file | what it is |
 | --- | --- |
@@ -84,8 +85,7 @@ nothing else (above all no INTERNET):
 5. Record the review video on that install (`review-video.md`), upload it to YouTube as unlisted,
    and add the link to the Accessibility declaration. If the Console will not roll out even the
    internal release until the declaration is complete, record it instead on a build installed
-   some other way on a device where the switch can be reached — on Android 13 and 14 the App info
-   page's ⋮ menu offers *Allow restricted settings* for a sideloaded app.
+   with `adb install`, whose switch can be reached on the OnePlus 15.
 6. Promote to closed testing, then production. A new personal developer account must first run a
    closed test with testers for a period before production access is granted; the Console states
    the current numbers.

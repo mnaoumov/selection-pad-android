@@ -18,7 +18,7 @@ locating a handle that the aimed-at drop misses; the defects the handset pass of
 found four more under *Page, start and end*: a collapsing top bar read as the document's edge (fixed on the rig, which cannot show the collapse; on the phone, page and end now run to the article's real end, but the collapse did not recur, so the fix's own branch is unexercised; with the omnibox already hidden, a short `⇞ page` scroll still read as the edge there, and now the page must also stop listing that scroll direction, fixed on the rig; on the phone the scroll then ran in full, so the short case did not recur), `start` ending
 blind on an image (fixed on the rig; on the phone the move off the image landed on a hidden header button, and the walk now skips controls, which is fixed on the rig and confirmed on the phone; a page step that reaches the top used to land on the image itself, and every page drag now holds and moves off it, fixed on the rig and confirmed on the phone; a `start` from the page's top used to set off Chrome's pull-to-refresh, and now does not swipe at all, which is fixed on the rig and confirmed on the phone), a START handle at the left margin (inside OxygenOS's own edge-gesture strip; the pad now names that instead of failing silently, confirmed on the phone at both margins, and such a press now stops at the first swallowed touch-down, fixed on the rig and confirmed on the phone, which also showed that the strip lets through a grab whose first move is vertical; every zone touch-down now rises past the slop first, and margin steps work on the phone at both margins), and a swipe that can open a heads-up notification (no touch-down lands in another app's window now; fixed on the rig and confirmed on the phone, where the pass also found that a press after a hand scroll can grab at a node's pre-scroll position, which now refuses instead, fixed on the rig and confirmed on the phone); the blind pad on Android 36.0 now names the Chrome flag that fixes it, confirmed on the phone; a
 heading's block-wide box taken for its text now refuses instead of aiming, fixed on the rig and confirmed on the phone, under *Gotchas*; the grab that closed the pad through its own
-`✕` is fixed on the rig and confirmed on the phone); and Play distribution, which ECM makes mandatory rather than optional. The test rig is now a repo asset — see *The test rig* below.
+`✕` is fixed on the rig and confirmed on the phone); and Play distribution. The test rig is now a repo asset — see *The test rig* below.
 
 A handle inside a **wrapped** node was on that list and is no longer: the row it needs comes from the
 platform's own per-character rectangle, which Chrome does supply for page content once the node has
@@ -61,9 +61,10 @@ The two builds are **separate Gradle projects**: `spike/` has its own wrapper an
  Tor). But **Google Docs fires no selection event at all** while reporting `textSelectionStart/End` on its
  node — the exact opposite of Chrome — so both rungs must be implemented. Sheets selects *cells*, not
  text. Full matrix in `the gesture spike's notes`.
-- **Distribution is the open problem, and Play is the answer to both halves of it.** On OxygenOS 16 a
- sideloaded accessibility service simply has no enable toggle, and neither the UI nor adb's `appops` can
- lift the block; ECM keys on install provenance, so only a trusted install source clears it. Play policy
+- **Distribution is the open problem, and Play is the answer to it.** The gesture spike read a missing
+ enable toggle on OxygenOS 16 as ECM blocking a sideloaded service. That was the accessibility-button
+ flag's `INVISIBLE_TOGGLE` page: since the flag was removed, an `adb install` gets the switch
+ (measured 2026-11-11, *Run the app*). Play policy
  itself is not the obstacle the first spike assumed — it "permits the use of the AccessibilityService API across a
  wide range of applications", with a declaration-and-disclosure lane for apps that are not
  `isAccessibilityTool`. See `the gesture spike's notes` for the policy read and the precedent.
@@ -4176,31 +4177,30 @@ saving and restoring it, so anything else you rely on (a password manager's auto
 preserved and a second run is a no-op. It also picks the **physical device** and ignores emulators,
 per *Never touch* below.
 
-**The app DOES appear in Settings → Accessibility → Downloaded apps; what is missing is the switch
-inside it.** Say it that way round, because the looser version ("it does not appear in Settings") is
-wrong and the row is genuinely there, reading `Selection Pad — Off ›` exactly like every other entry.
+**An `adb install` of the current build gets the service switch in Settings, so ECM does not block
+it.** Measured 2026-11-11 on the OnePlus 15 in the owner's own user (user 0), with a debug build
+(`versionCode` 2) installed by `adb install`: `installerPackageName=null`,
+`initiatingPackageName=com.android.shell`. With the service taken out of
+`enabled_accessibility_services`, Settings > Accessibility > Downloaded apps listed `Selection Pad — Off ›`.
+Its page showed a **Selection Pad** switch above **Shortcut** and **App info**. A tap on it brought up
+Android's own "Allow "Selection Pad" to have full control of your device?" sheet, with **Deny** and
+**Allow**, and no "Restricted setting" dialog. **Allow** turned the switch on, put the service back in
+the enabled list after Bitwarden, and the service connected (`lifecycle.log`: `service: created`,
+`service connected`). A secondary user made for the review video showed the same earlier that day.
+`appops get dev.mnaoumov.selectionpad ACCESS_RESTRICTED_SETTINGS` read `default` before and after, and
+its `rejectTime` was stamped at the tap, so the platform consulted the op and let the switch through
+anyway. In the same list `RustDesk Input` was drawn greyed out, which is what a restricted entry looks
+like, so the guard exists on this ROM and simply does not apply to this install.
 
-Open that row and it offers only **Shortcut** and **App info** — there is no "use this service"
-toggle. Verified on the app 2026-09-03 by `uiautomator dump`: the page's single `Switch`
-(`com.android.settings:id/switch_layout`) belongs to the Shortcut row. The control is Play-installed
-Bitwarden's row in the same list, which reads `On / Assist with filling password fields…` because it
-gets a real toggle in that position.
-
-The cause is ECM, keying on install provenance: an `adb install` leaves `installerPackageName=null`
-and `initiatingPackageName=com.android.shell`, which it treats as untrusted. OxygenOS offers no
-"allow restricted settings" route, and `appops` cannot clear it either (adb's uid lacks
-`MANAGE_APP_OPS_MODES`). A trusted install source is the only real fix — which is why Play is a
-design constraint here rather than a distribution preference. Full reasoning in `the gesture spike's notes`.
-
-**But on 2026-11-11 an adb-installed build DID get the switch, in a secondary user.** The OnePlus 15
-held a debug build (`versionCode` 2, `installerPackageName=null`) installed with `adb install`, which
-installs it for every user. In a second Android user made for the review video, Settings >
-Accessibility > Downloaded apps > Selection Pad showed the **Selection Pad** switch above Shortcut and
-App info. Tapping it brought up Android's "Allow full control" dialog, and **Allow** turned the service
-on. That was not measured in the owner's own user. It is also the first such measurement since
-`flagRequestAccessibilityButton` was removed, and the missing switch may have been that flag's
-`INVISIBLE_TOGGLE` fragment type rather than ECM (*The system's accessibility button does NOT toggle the
-pad*). Until that is measured in the main user, keep treating Play as required.
+**The switch was missing until 2026-11-07, and the cause was `flagRequestAccessibilityButton`, not ECM.**
+From 2026-09-03 the row's page offered only **Shortcut** and **App info**: `uiautomator dump` found one
+`Switch` (`com.android.settings:id/switch_layout`), and it belonged to the Shortcut row. That was read
+as ECM keying on install provenance. But a service that targets API 30+ and requests the accessibility
+button gets the `INVISIBLE_TOGGLE` fragment type, whose page has no switch (*The system's accessibility
+button does NOT toggle the pad*), and since the flag was removed the switch is there. So Play is no
+longer forced on this app by Settings. It is still the distribution route and what a reviewer runs.
+How a user's own sideload, an APK opened from a file manager, is treated was not measured: that install
+has a package-installer session as its source, not the shell.
 
 A further wrinkle worth knowing: a service enabled with `settings put` **runs**, but that Settings
 row still reads `Off`. So the list is not a reliable indicator of what is actually running — check
@@ -4208,7 +4208,7 @@ row still reads `Off`. So the list is not a reliable indicator of what is actual
 
 The launcher entry (**Selection Pad**) shows the Play-required disclosure, which ends in a real choice:
 agree, which opens Accessibility settings, or **No thanks**, which closes the screen and leaves the
-service off (both checked on the rig 2026-09-23). On this device the settings link is informational, since the toggle will not be there.
+service off (both checked on the rig 2026-09-23). On the phone the settings link leads to the service's switch (2026-11-11, above).
 
 **A `Privacy policy` button sits under those two (2026-11-09)**, because Play's privacy-policy form says the policy must be linked "on your store listing and within your app". It opens `play/privacy-policy.md` on GitHub with a VIEW intent, so the app still asks for no INTERNET permission (`aapt2 dump permissions` on the debug build listed only `POST_NOTIFICATIONS`). Where no app can open links, a toast shows the URL. Measured on the rig on 2026-11-10: on the launcher screen, scrolled so the button sat at y 168..264, a tap logged `START u0 {act=android.intent.action.VIEW dat=https://github.com/...} ... from uid 10232 (dev.mnaoumov.selectionpad)`. Chrome's `IntentDispatcher` handed it to `ChromeTabbedActivity`, which became the top resumed activity with `capturedLink=https://github.com/mnaoumov/selection-pad-android/blob/main/play/privacy-policy.md`, and the omnibox read `github.com/mnao…`. **The phone confirms it (2026-11-11, OnePlus 15, the Play internal-test build, `versionCode` 1).** With the launcher screen scrolled so the button sat at about y 1241, clear of the docked pad, a tap logged `START u0 {act=android.intent.action.VIEW dat=https://github.com/... cmp=com.android.chrome/com.google.android.apps.chrome.IntentDispatcher} ... from uid 10585 (dev.mnaoumov.selectionpad)` with `capturedLink=https://github.com/mnaoumov/selection-pad-android/blob/main/play/privacy-policy.md`. `ChromeTabbedActivity` took the focus, and the screenshot showed the file loaded in GitHub's Preview tab, under the heading `Selection Pad — Privacy Policy`. Back returned the focus to `MainActivity`.
 
@@ -4274,9 +4274,10 @@ where the handles are, and a touchable overlay there would eat the service's own
 hidden toolbar is still pressable blind — masking hides it without disabling it.
 
 **Closing the pad hides the overlay and leaves the service connected**, on purpose. The `✕` at the
-right of the status line is the only way out that is available on this device: the Accessibility
-switch is ECM-blocked (above), so `disableSelf` would strand the user behind it, needing
-`scripts\pad.ps1 on` to get back. Instead the service stays alive with no overlay, and **Show the
+right of the status line hides the pad and nothing more. It was written while the Accessibility
+switch was missing (above), when `disableSelf` would have stranded the user behind it, needing
+`scripts\pad.ps1 on` to get back. The switch is there now, but turning the service off is still the
+user's act in Settings, and a pad that comes back with one tap is the better close. Instead the service stays alive with no overlay, and **Show the
 pad** on the launcher screen puts it back — a direct call through
 `AscAccessibilityService.showPad`, which works because the activity and the service share one
 process.
@@ -4352,8 +4353,8 @@ full pad covered, selected that word in Chrome, and a tap on `▲ pad` expanded 
 build, `.\gradlew phone` fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, because the signatures differ.
 Measure against the Play build. It is not debuggable, so `run-as` and the debug marker files do not work
 there, but the `ASC` log does. Uninstalling it to get a debug build onto the phone would throw away the
-owner's Play install (`installerPackageName=com.android.vending`), which is the trusted install source
-ECM wants, so leave that call to the owner.
+owner's Play install (`installerPackageName=com.android.vending`), which is the install a reviewer runs,
+so leave that call to the owner.
 
 **The header's `⚙ app` opens the launcher screen, where the settings are (owner, 2026-10-31).** Until then
 that screen was reachable only from the launcher icon. The service starts `MainActivity` with
@@ -4561,8 +4562,9 @@ why (`%LOCALAPPDATA%\Android\Sdk\sources\android-36.1\com\android\internal\acces
 `AccessibilityUtils.getAccessibilityServiceFragmentType` gives a service that targets API 30+ and requests the
 button the `INVISIBLE_TOGGLE` type, which `ShortcutUtils.updateInvisibleToggleAccessibilityServiceEnableState`
 calls an "Always-On" service: it is turned on when any shortcut names it and OFF when none does. So removing
-the floating button (or the Settings shortcut) switched the whole service off, and a sideloaded build cannot
-switch it back on under ECM. The same type is why Settings shows only Shortcut and App info for it. A
+the floating button (or the Settings shortcut) switched the whole service off, and Settings had no switch to
+turn it back on. The same type is why Settings showed only Shortcut and App info for it, which was read as
+ECM until 2026-11-11 (*Run the app*). A
 `settings put` of the targets bypasses that path, which is why the 2026-11-02 phone pass, which restored the
 targets that way, saw both services stay enabled. The flag cannot be set at runtime either: for API 30+
 `setServiceInfo` keeps its static value (`REQUEST_ACCESSIBILITY_BUTTON_CHANGE`; a runtime switch logged
@@ -4570,8 +4572,8 @@ targets that way, saw both services stay enabled. The flag cannot be set at runt
 toggle the pad without that coupling, and the flag is gone. `ServiceConfigTest` fails if it comes back. The
 tile and the notification are the ways to show or hide the pad from outside the app.
 
-Without the flag, a shortcut the user assigns turns the whole service off and on, which under ECM may not come
-back. So the launcher's `Accessibility button` switch is gone. In its place, a warning shows only while
+Without the flag, a shortcut the user assigns still turns the whole service off and on, and a service turned off
+that way has to be turned back on in Settings. So the launcher's `Accessibility button` switch is gone. In its place, a warning shows only while
 `ButtonShortcut.assigned` finds the service in one of the three target keys, with a button that opens
 Accessibility settings with this service's row highlighted (`:settings:fragment_args_key` set to the flattened
 component; the direct `ACCESSIBILITY_DETAILS_SETTINGS` threw `SecurityException` on the rig). The launcher
@@ -4722,7 +4724,7 @@ enabled but not running, and off. Enabled but not running:
 service itself, left an unbound service unbound and an inert bound instance untouched, even 13 s later.
 The shell cannot flip a component (`Shell cannot change component state`), so that was measured from the
 app. Leaving the service's component disabled would make Android drop the service from the enabled list,
-which on an ECM-restricted install the user cannot turn back on, so nothing tries.
+which the user would then have to turn back on in Settings, so nothing tries.
 
 **A UiAutomation connection suspends every accessibility service while it lasts, and that is how the rig
 reproduces the phone's state.** `uiautomator dump` connects and disconnects, so each dump unbinds the
@@ -4886,7 +4888,10 @@ $d = "<device-serial>" # adb devices -l
 adb -s $d install -r spike\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-Enable the service. **The by-hand route does not exist on this ROM** (the gesture spike): a sideloaded service gets no
+Enable the service. This section is the gesture spike's reading, kept as it was measured. The app's own
+`adb install` gets the switch (*Run the app*, 2026-11-11), so the missing toggle below was most likely the
+spike's accessibility-button flag, not ECM; the spike was not re-measured.
+**The by-hand route does not exist on this ROM** (the gesture spike): a sideloaded service gets no
 master toggle under Settings → Accessibility → Downloaded apps, this OxygenOS build offers no "Allow
 restricted settings" affordance, and `adb shell appops set … ACCESS_RESTRICTED_SETTINGS allow` fails
 because uid 2000 lacks `MANAGE_APP_OPS_MODES`.

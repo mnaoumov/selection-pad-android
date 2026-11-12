@@ -419,10 +419,10 @@ class Pad(
      *
      * The pad has to be dismissible from the pad itself: it is an always-on overlay sitting over
      * whatever the user is reading, and until this existed the only ways to get rid of it were the
-     * Accessibility switch — which Enhanced Confirmation Mode blocks for a sideloaded build — or the
-     * by-hand script. Closing HIDES the overlay and leaves the service connected, deliberately: the
-     * service is what can put the pad back (see MainActivity), whereas `disableSelf` would strand
-     * the user behind that same blocked switch.
+     * Accessibility switch, which was missing while the service requested the accessibility button,
+     * or the by-hand script. Closing HIDES the overlay and leaves the service connected, deliberately:
+     * the service is what can put the pad back with one tap (see MainActivity), whereas
+     * `disableSelf` would send the user through Settings and its confirmation dialog.
      */
     val header = LinearLayout(themed).apply { orientation = LinearLayout.HORIZONTAL }
     header.addView(
