@@ -4295,6 +4295,21 @@ The launcher entry (**Selection Pad**) shows the Play-required disclosure, which
 agree, which opens Accessibility settings, or **No thanks**, which closes the screen and leaves the
 service off (both checked on the rig 2026-09-23). On the phone the settings link leads to the service's switch (2026-11-11, above).
 
+**The full disclosure is the consent step only, not every visit (owner, 2026-11-11).** Play asks for it
+before the access is granted, so the launcher opens on it until the user agrees, which records
+`PadSettings.consentGiven`, or the service is already on (`Disclosure.screen`). After that it opens on
+its normal screen (title **Selection Pad**), whose **Accessibility disclosure** button shows the same
+text in a dialog. With consent and the service off, a row says so and opens Accessibility settings
+(the switched-off row takes its place once the service has run). The text was cut to fit one screen,
+and with no pad on screen the launcher keeps no clearance for it, so the consent step does not
+scroll. The fit line says so: `disclosure fit (consent step): ... content 1245 px in a 1361 px
+viewport (scrolls=false)` on the rig on 2026-11-12, after `pm clear` with the service off. `I
+understand` then logged `launcher: consent recorded`, and Back from Settings logged `showing the normal
+screen` with the off row. With the service enabled, the normal screen showed again, with the link above
+**Privacy policy**. The dialog itself was not opened on the rig: the guest's system server restarted
+under the machine's load before the tap, and the emulator then died. To see the consent step again,
+clear the app's storage with the service off.
+
 **A `Privacy policy` button sits under those two (2026-11-09)**, because Play's privacy-policy form says the policy must be linked "on your store listing and within your app". It opens `play/privacy-policy.md` on GitHub with a VIEW intent, so the app still asks for no INTERNET permission (`aapt2 dump permissions` on the debug build listed only `POST_NOTIFICATIONS`). Where no app can open links, a toast shows the URL. Measured on the rig on 2026-11-10: on the launcher screen, scrolled so the button sat at y 168..264, a tap logged `START u0 {act=android.intent.action.VIEW dat=https://github.com/...} ... from uid 10232 (dev.mnaoumov.selectionpad)`. Chrome's `IntentDispatcher` handed it to `ChromeTabbedActivity`, which became the top resumed activity with `capturedLink=https://github.com/mnaoumov/selection-pad-android/blob/main/play/privacy-policy.md`, and the omnibox read `github.com/mnao…`. **The phone confirms it (2026-11-11, OnePlus 15, the Play internal-test build, `versionCode` 1).** With the launcher screen scrolled so the button sat at about y 1241, clear of the docked pad, a tap logged `START u0 {act=android.intent.action.VIEW dat=https://github.com/... cmp=com.android.chrome/com.google.android.apps.chrome.IntentDispatcher} ... from uid 10585 (dev.mnaoumov.selectionpad)` with `capturedLink=https://github.com/mnaoumov/selection-pad-android/blob/main/play/privacy-policy.md`. `ChromeTabbedActivity` took the focus, and the screenshot showed the file loaded in GitHub's Preview tab, under the heading `Selection Pad — Privacy Policy`. Back returned the focus to `MainActivity`.
 
 **Every screen is edge to edge, because the app targets API 36, so each one pads itself clear of the

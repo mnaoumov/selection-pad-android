@@ -40,6 +40,15 @@ class PadSettings(private val preferences: SharedPreferences) {
     set(value) = preferences.edit().putBoolean(KEY_SERVICE_CONNECTED_ONCE, value).apply()
 
   /**
+   * Whether the user agreed to the accessibility disclosure on the launcher's consent step
+   * ([Disclosure]). Once set, the launcher opens on its normal screen, with the disclosure behind a
+   * link. Never cleared by the app: turning the service off is the user's way out.
+   */
+  var consentGiven: Boolean
+    get() = preferences.getBoolean(KEY_CONSENT_GIVEN, false)
+    set(value) = preferences.edit().putBoolean(KEY_CONSENT_GIVEN, value).apply()
+
+  /**
    * Whether the launcher screen has already offered to add the Quick Settings tile by itself. It
    * offers once; the button stays for any later time.
    */
@@ -121,6 +130,7 @@ class PadSettings(private val preferences: SharedPreferences) {
     private const val KEY_PAD_VISIBLE = "padVisible"
     private const val KEY_MENU_MASKED = "menuMasked"
     private const val KEY_SERVICE_CONNECTED_ONCE = "serviceConnectedOnce"
+    private const val KEY_CONSENT_GIVEN = "consentGiven"
     private const val KEY_TILE_OFFERED = "tileOffered"
     private const val KEY_TILE_IN_PANEL = "tileInPanel"
     private const val KEY_NOTIFICATION_ON ="notificationOn"

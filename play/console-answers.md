@@ -44,6 +44,13 @@ the user is sent to Accessibility settings. It states what is accessed and why, 
 affirmative choice: *"I understand — open Accessibility settings"* or *"No thanks"*. Declining
 leaves the service off. The review video shows it (see `review-video.md`).
 
+The full text is on that consent step, with nothing collapsed, and it fits one screen without
+scrolling. The launcher opens on the consent step until the user agrees (the app records the
+consent) or the service is already on. After that it opens on its normal screen, which has an
+**Accessibility disclosure** button that shows the same text on request (owner, 2026-11-11). Play
+requires the disclosure before the access is granted, not on every visit, so the consent step is
+the part the review covers.
+
 **Video link:** the unlisted YouTube upload of the review video.
 
 ## App content → Data safety
