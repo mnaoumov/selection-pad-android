@@ -53,7 +53,10 @@ class Pad(
   private val onTap: (PadCommand) -> kotlin.Unit,
   /** A long press, ended. Step until something stops it. */
   private val onRepeat: (PadCommand) -> kotlin.Unit,
-  /** Stop a run. True if there was one, so the pad can say so. */
+  /**
+   * Stop a run, or a press in flight. True if there was one, in which case the touch that asked is
+   * consumed whole so it steps nothing.
+   */
   private val onStopRepeat: () -> Boolean,
   private val onSwapEdge: () -> kotlin.Unit,
   private val onToggleMenu: () -> kotlin.Unit,
@@ -243,12 +246,37 @@ class Pad(
    * it, so that touch presses nothing and closes nothing.
    */
   private inner class TouchGate(context: Context) : FrameLayout(context) {
+    /** The gesture in progress began by stopping a run, so none of it may press anything. */
+    private var swallowingStop = false
+
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-      if (!passingThrough) return super.dispatchTouchEvent(event)
-      if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-        Diag.log("pad: a touch-down at (${event.rawX}, ${event.rawY}) reached the pad while it lets touches through — swallowed")
+      if (passingThrough) {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+          Diag.log("pad: a touch-down at (${event.rawX}, ${event.rawY}) reached the pad while it lets touches through — swallowed")
+        }
+        return true
       }
-      return true
+      /*
+       * Any touch on the pad stops a run or a document sweep: the status line that reads "repeating —
+       * tap to stop", the header and the gaps between buttons included. Measured on the handset
+       * (2026-11-11): a tap on the status text did nothing, because only the direction buttons asked.
+       * The touch that stops is consumed whole, so it does not also step, close or open anything.
+       */
+      if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+        swallowingStop = onStopRepeat()
+        if (swallowingStop) {
+          Diag.log("pad: a touch-down at (${event.rawX}, ${event.rawY}) stopped the run — consumed")
+          showStatus("stopped")
+          return true
+        }
+      }
+      if (swallowingStop) {
+        if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+          swallowingStop = false
+        }
+        return true
+      }
+      return super.dispatchTouchEvent(event)
     }
   }
 
@@ -530,7 +558,7 @@ class Pad(
           MotionEvent.ACTION_DOWN -> {
             view.isPressed = true
             pressedAtMs = SystemClock.uptimeMillis()
-            if (onStopRepeat()) showStatus("stopped")
+            // A run in progress was already stopped by the TouchGate, which consumed this gesture.
             view.postDelayed(arm, LONG_PRESS_MS)
             true
           }
