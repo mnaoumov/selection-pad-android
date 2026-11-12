@@ -160,6 +160,9 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     // And for Chrome re-anchoring a selection at the start of a handle drag.
     driver.forceReanchor = debuggable && java.io.File(filesDir, FORCE_REANCHOR).exists()
     if (driver.forceReanchor) Diag.log("debug: a held char grab's landing reads as re-anchored")
+    // And for a stop touch that lands while a held char grab is down.
+    driver.forceStopAfterGrab = debuggable && java.io.File(filesDir, FORCE_STOP_AFTER_GRAB).exists()
+    if (driver.forceStopAfterGrab) Diag.log("debug: a stop is requested as each held char grab is judged")
 
     val settings = PadSettings(getSharedPreferences(PadSettings.FILE, MODE_PRIVATE))
     this.settings = settings
@@ -592,6 +595,12 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
     driver.perform(command) { outcome ->
       if (padCleared) pad?.setTransparentToTouch(false)
       padCleared = false
+      /*
+       * A press a touch stopped keeps saying so after it reports: the step in flight finishes, and
+       * its own result used to replace `stopped` on the status line, so the line read as an ordinary
+       * step (`moved 1 → 2`), or as a failed one when the stop cut it short.
+       */
+      val stopped = if (driver.stopWasRequested) " — stopped" else ""
       pad?.showStatus(
         if (driver.activeEdge != edgeBefore) {
           // `start` on the END edge (or `end` on the START) carried it past the anchor.
@@ -603,9 +612,10 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
           EDGE_ZONE_STATUS
         } else {
           describe(outcome, command.toRight)
-        }
+        } + stopped
       )
-      learnEdgeZoneVerdict(outcome)
+      // A stop touch ends the app's drag, so the silence after it says nothing about the edge zone.
+      if (!driver.stopWasRequested) learnEdgeZoneVerdict(outcome)
       busy = false
       // The press just moved the selection, so the toolbar has just moved too. After `busy` clears,
       // or the guard in refreshMask would skip it.
@@ -1508,6 +1518,9 @@ class AscAccessibilityService : AccessibilityService(), GestureDispatcher {
 
     /** The debug marker file that reads a held char grab's landing as re-anchored: see `SelectionDriver.forceReanchor`. */
     const val FORCE_REANCHOR = "force-reanchor"
+
+    /** The debug marker file that requests a stop as each held char grab is judged: see `SelectionDriver.forceStopAfterGrab`. */
+    const val FORCE_STOP_AFTER_GRAB = "force-stop-after-grab"
 
     /** The status line for a press the side gesture zone stopped. */
     const val EDGE_ZONE_STATUS = "the handle is in the screen edge's swipe zone"

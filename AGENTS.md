@@ -634,12 +634,37 @@ and reloaded before each sweep run. Long-press `interactive` (`4..15`), then:
 
 All 15 shell taps reached the pad, so the rig's lost-tap problem below did not show on the phone.
 Two things differ from the rig's account. **The status line does not keep `stopped`**: the step in
-flight reports when it ends, and its result replaces it, so after the char runs it read `moved 1 → 2`.
+flight reports when it ends, and its result replaced it, so after the char runs it read `moved 1 → 2`
+(it now adds `— stopped`, below).
 **A stop touch that lands while the held grab is down ends Chrome's drag** (a real touch ends the
 target app's tracking, the held-pointer entry below). In 1 run of 3 the grab from `0..2` of
 `software` then announced nothing, and the press went on with six snap-through pushes on a drag
 Chrome had dropped, `Moved(2, 2)` in 2.0 s and 7 gestures. The selection was intact and nothing
 followed.
+
+**So a stopped press lifts at its next escalation, and the status line adds `— stopped`
+(2026-11-11).** `SelectionDriver.liftedOnStop` runs before every push that escalates a press: a held
+correction, a snap-through push, a word walk's next push, an inline push, a released walk-back drag
+and a released grow's retry. Once a stop is requested it logs `stop: a touch asked the press to stop
+— lifting at <n> rather than pushing on`, lifts, and reports the offset that survived the lift. A
+correction that is already on its target finishes as before, because it costs nothing more. Page
+steps keep their own checks between pages. The status line reads the step's own result plus
+` — stopped`, e.g. `didn't move — stopped`. A stopped press teaches no side-zone verdict, because the
+silence after a stop touch is the dropped drag's. The rig loses shell taps made while the held
+pointer is down (next entry), and two stop taps of two were lost in this sitting, so
+`adb shell run-as dev.mnaoumov.selectionpad touch files/force-stop-after-grab`, then `rig.ps1 rebind`,
+requests a stop as each held char grab is judged, on a debuggable build (it logs `debug: requesting a
+stop as the held grab is judged`). `rm` it and rebind to undo. Measured 2026-11-11 on the rig, Chrome
+143, a served `Chrome is made by Google` at 32 px, long-press `Chrome` (`0..6`), then `→ char`:
+
+| press | result |
+|---|---|
+| no stop, `→ char` from 7 (a word's start), the build with the fix, 2 runs | the grab silent, then 6 snap-through pushes, `Moved(7, 7)` in 5.1 s and 7 gestures; and once the push snapped to 9 and walked back, `Moved(7, 8)` in 3 gestures, as before |
+| marker on, `→ char` from 6 | the grab landed on 7, its target, so no lift: `Moved(6, 7)` in 1 gesture; status `moved 6 → 7 — stopped` |
+| marker on, `→ char` from 7, 3 runs of 3 | the grab silent, then `stop: ... lifting at 7`, `Moved(7, 7)` in 1.6-2.8 s and 1 gesture; the screenshot showed `Chrome ` still selected and `didn't move — stopped` |
+
+The guest was at a load average of 15-60 through the sitting, so the times are long. The phone, where
+a real stop touch reaches the pad, is still to confirm it.
 
 **On the rig an `adb shell input tap` made while the held pointer is down can be lost.** Shell
 taps and `dispatchGesture` are both injected input (`deviceId=-1`), and `InputDispatcher` logged

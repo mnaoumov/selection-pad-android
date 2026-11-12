@@ -1328,6 +1328,7 @@ class SelectionDriver(
       return
     }
     val origin = first ?: before
+    if (attempt > 0 && liftedOnStop(origin.movingOffset(), onDone)) return
     val located = locator.locate(before, activeEdge, toolbarCentre())
     if (located == null) {
       acquireThenRetry(command, onDone)
@@ -1924,6 +1925,10 @@ class SelectionDriver(
         return@grabAndHold
       }
       val judge = fun(landed: SelectionObserver.Snapshot?) {
+        if (forceStopAfterGrab) {
+          Diag.log("  debug: requesting a stop as the held grab is judged")
+          requestStop()
+        }
         val after = if (forceReanchor && landed != null && locator.grabbedAHandle(before, landed) &&
           nodeChange == null && !crossedNodes(before, landed)
         ) {
@@ -2186,6 +2191,7 @@ class SelectionDriver(
       }
       return
     }
+    if (liftedOnStop(origin, onDone)) return
     if (guard >= MAX_HELD_CORRECTIONS) {
       Diag.log("  held: out of corrections at $current, wanted $target")
       releaseThenReport(origin, current, onDone)
@@ -2352,6 +2358,7 @@ class SelectionDriver(
       onDone(Outcome.NoSelection)
       return
     }
+    if (liftedOnStop(origin, onDone)) return
     val at = gestures.heldAt()
     if (at == null) {
       Diag.log("  held: nothing is held any more — finishing on the released path")
@@ -2520,6 +2527,7 @@ class SelectionDriver(
     // The pointer's distance from the moving caret at the grab. See [caretAim].
     grabOffset: Float? = null,
   ) {
+    if (liftedOnStop(origin, onDone)) return
     val current = before.movingOffset()
     val crossed = after != null && before.source != null && after.source != null && before.source != after.source
     val moved = if (after == null) 0 else grownBy(current, after.movingOffset())
@@ -2817,6 +2825,7 @@ class SelectionDriver(
       onDone(Outcome.Moved(origin, current))
       return
     }
+    if (liftedOnStop(origin, onDone)) return
 
     // Counted in the shrinking direction, so "past the target" below means the same thing on both
     // edges. See [towardAnchor].
@@ -3593,6 +3602,7 @@ class SelectionDriver(
       onDone(Outcome.HandleLost)
       return
     }
+    if (liftedOnStop(start, onDone)) return
     val bounds = step.neighbour.bounds
     val perChar = bounds.width().toFloat() / step.neighbour.length.coerceAtLeast(1)
     val push = (perChar * CHARS_PER_ATTEMPT).coerceAtLeast(STEP_PX)
@@ -3887,6 +3897,14 @@ class SelectionDriver(
    */
   var forceReanchor = false
 
+  /**
+   * Debug only: a stop is requested as each held character grab is judged, as if a stop touch had
+   * landed while the grab was down. On the rig a shell tap made while the held pointer is down is
+   * often lost before it reaches the pad, so this is how [liftedOnStop] is driven there. Set from a
+   * marker file by `AscAccessibilityService`.
+   */
+  var forceStopAfterGrab = false
+
   /** The announcement [forceStaleSource] last refused on, so each one is refused once. */
   private var staleForcedFor = -1L
 
@@ -3900,6 +3918,31 @@ class SelectionDriver(
   fun requestStop() {
     Diag.log("stop requested")
     stopRequested = true
+  }
+
+  /** Whether a touch asked the press in flight, or the one that just ended, to stop. */
+  val stopWasRequested: Boolean get() = stopRequested
+
+  /**
+   * True, having lifted and reported what the press has, when a touch asked it to stop.
+   *
+   * Checked before every push that ESCALATES a press: a held correction, a snap-through push, a word
+   * walk's next push, an inline push, a released walk-back drag and a released grow's retry. A stop
+   * touch is a real touch, and a real touch ends the target app's handle drag (the held-pointer
+   * gotcha), so every held push after it lands on a drag the app has dropped. Measured 2026-11-11 on
+   * the OnePlus 15: a stop tap during a held `→ char` grab from `0..2` of `software`, after which the
+   * grab announced nothing and six snap-through pushes followed, `Moved(2, 2)` in 2.0 s and 7
+   * gestures. The selection survived, but the pushes were wasted and the press read as a failed step.
+   *
+   * Not checked before a correction that finishes on its target, nor inside a page step, whose own
+   * checks stop it between pages.
+   */
+  private fun liftedOnStop(origin: Int, onDone: (Outcome) -> Unit): Boolean {
+    if (!stopRequested) return false
+    val landed = observer.latest?.takeIf { !it.isEmpty() }?.movingOffset() ?: origin
+    Diag.log("  stop: a touch asked the press to stop — lifting at $landed rather than pushing on")
+    releaseThenReport(origin, landed, onDone)
+    return true
   }
 
   /**
