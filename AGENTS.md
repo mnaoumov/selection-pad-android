@@ -621,6 +621,26 @@ follows it. Measured 2026-11-11 on the rig, the debug target's wrapped block, a 
 | a tap on `✕`, (680, 1290) | the same, and the pad stayed up |
 | control: a tap on `← char` with no run | `44 -> 43`, 1 gesture |
 
+**The phone confirms it (2026-11-11, OnePlus 15, the debug build of `a82e71e`, Chrome on
+`en.wikipedia.org/wiki/Text_editor`, the old announcement in effect).** Chrome was force-stopped
+and reloaded before each sweep run. Long-press `interactive` (`4..15`), then:
+
+| touch | result |
+|---|---|
+| `→ char` held 0.9 s, then a tap on the status line at (216, 2290) 2.5 s later, 3 runs of 3 | the run stepped `15 -> 16`, then into the link `software` (`16 -> 1`); the tap logged `stop requested` and `touch-down at (216.0, 2290.0) stopped the run — consumed`; the step in flight ended (`1 -> 2` twice, `Moved(2, 2)` once, below) and no step followed |
+| `⤓ end`, then a tap on the header above the status line at (216, 2196) 2.5 s later, 3 runs of 3 | `stopped the run — consumed`, then the sweep ended after 2 page steps, `Moved(15, 17)` in 3.5 s and 4 gestures (once `Moved(15, 13)` in 4.8 s, its second page left on a silent move onto a caret); the pad stayed up |
+| `⤓ end`, then a tap on `✕` at (1172, 2280) 2.5 s later, 3 runs of 3 | the same: the sweep stopped after 2 page steps and the pad window stayed; a second `✕` 5 s later closed it |
+| control: `⤓ end` with no touch | 4 page steps to the footer, `Moved(15, 12)` in 7.1 s and 8 gestures |
+
+All 15 shell taps reached the pad, so the rig's lost-tap problem below did not show on the phone.
+Two things differ from the rig's account. **The status line does not keep `stopped`**: the step in
+flight reports when it ends, and its result replaces it, so after the char runs it read `moved 1 → 2`.
+**A stop touch that lands while the held grab is down ends Chrome's drag** (a real touch ends the
+target app's tracking, the held-pointer entry below). In 1 run of 3 the grab from `0..2` of
+`software` then announced nothing, and the press went on with six snap-through pushes on a drag
+Chrome had dropped, `Moved(2, 2)` in 2.0 s and 7 gestures. The selection was intact and nothing
+followed.
+
 **On the rig an `adb shell input tap` made while the held pointer is down can be lost.** Shell
 taps and `dispatchGesture` are both injected input (`deviceId=-1`), and `InputDispatcher` logged
 `Inconsistent event` while they overlapped. 3 taps of 7 in that sitting (two on the status line, one
