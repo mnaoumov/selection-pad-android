@@ -3240,6 +3240,17 @@ onto offset 0 (grabbed at x 14, inside the 60 px left zone):
 | swallow marker on, `→ char` ×2 | each press: one dropped touch-down, then `InEdgeZone` in 67-106 ms with 1 gesture. The second press tried again rather than being refused with 0 gestures. The screenshot showed the whole edge message in 4 lines inside the header, beside `menu on` |
 | no marker, `→ char`, `← char`, `→ char`, `← char` | `0 -> 1 -> 0 -> 1 -> 0`, 1 gesture each, 0.9-1.5 s, each zone grab `answered` |
 
+**The phone confirms it (2026-11-15, OnePlus 15, the debug build of `af59684`, which carries the change,
+Chrome on `exler.es/blog`, the old announcement in effect).** The date line of the original report had
+scrolled off the blog, so the measurements used a body line that starts at the same 56 px text margin.
+Long-press `купить` (`242..248`, the line's first word), then `⇄ swap`. The START is drawn at the left
+margin and grabbed at x 38.5, inside the 105 px zone:
+
+| run | result |
+|---|---|
+| no marker, `→ char` ×2 | `242 -> 243 -> 244`, 1 gesture each, 592 and 536 ms; each grab `rising 42.0 px first` and `answered` |
+| swallow marker on, `→ char` ×2 | each press: `debug: swallowed it`, then `InEdgeZone` in 17 and 21 ms with 1 gesture. The second press tried again and was not refused with 0 gestures. The screenshot showed the whole edge message in 3 lines in the header, beside `menu on`, with nothing cut off |
+
 **A grow from the document's first or last caret has nowhere to go. Unless it touches nothing, its
 silence teaches the verdict wrong.** Measured 2026-10-13 on the rig (Chrome 143, no marker, so the zone
 takes the grab): with the START on `0..22` of a served page's first row, `← char` grabbed at x 14,
