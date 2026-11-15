@@ -4310,6 +4310,17 @@ screen` with the off row. With the service enabled, the normal screen showed aga
 under the machine's load before the tap, and the emulator then died. To see the consent step again,
 clear the app's storage with the service off.
 
+**The pad steps aside while the disclosure dialog is up (2026-11-15).** On the OnePlus 15 the docked
+pad drew over the dialog's last line and its OK button, so the dialog could be closed only with Back.
+`MainActivity.showDisclosure` now calls `stepAside("the disclosure dialog")` before showing it and
+`comeBack()` from its dismiss listener, so OK, Back, a tap outside and the screen ending all bring the
+pad back (`onDestroy` dismisses a dialog still up). Like the add-tile and share-sheet step-asides, it
+never writes `padVisible`. Measured 2026-11-15 on the rig, the pad docked at the bottom, consent given:
+a tap on **Accessibility disclosure** logged `aside: hiding the pad for the disclosure dialog`, and the
+screenshot showed the whole text and OK clear, with no pad. OK, Back and a tap outside each logged
+`aside: done with the disclosure dialog`, then `lock: showing the pad`, and the pad was docked again.
+The share sheet's step-aside was unchanged.
+
 **A `Privacy policy` button sits under those two (2026-11-09)**, because Play's privacy-policy form says the policy must be linked "on your store listing and within your app". It opens `play/privacy-policy.md` on GitHub with a VIEW intent, so the app still asks for no INTERNET permission (`aapt2 dump permissions` on the debug build listed only `POST_NOTIFICATIONS`). Where no app can open links, a toast shows the URL. Measured on the rig on 2026-11-10: on the launcher screen, scrolled so the button sat at y 168..264, a tap logged `START u0 {act=android.intent.action.VIEW dat=https://github.com/...} ... from uid 10232 (dev.mnaoumov.selectionpad)`. Chrome's `IntentDispatcher` handed it to `ChromeTabbedActivity`, which became the top resumed activity with `capturedLink=https://github.com/mnaoumov/selection-pad-android/blob/main/play/privacy-policy.md`, and the omnibox read `github.com/mnao…`. **The phone confirms it (2026-11-11, OnePlus 15, the Play internal-test build, `versionCode` 1).** With the launcher screen scrolled so the button sat at about y 1241, clear of the docked pad, a tap logged `START u0 {act=android.intent.action.VIEW dat=https://github.com/... cmp=com.android.chrome/com.google.android.apps.chrome.IntentDispatcher} ... from uid 10585 (dev.mnaoumov.selectionpad)` with `capturedLink=https://github.com/mnaoumov/selection-pad-android/blob/main/play/privacy-policy.md`. `ChromeTabbedActivity` took the focus, and the screenshot showed the file loaded in GitHub's Preview tab, under the heading `Selection Pad — Privacy Policy`. Back returned the focus to `MainActivity`.
 
 **Every screen is edge to edge, because the app targets API 36, so each one pads itself clear of the
