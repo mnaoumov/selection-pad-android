@@ -40,3 +40,28 @@ Record with the phone's own screen recorder, or over adb:
 adb -s <device-serial> shell screenrecord --bit-rate 8000000 /sdcard/review.mp4   # Ctrl+C to stop; 3 min cap
 adb -s <device-serial> pull /sdcard/review.mp4
 ```
+
+## Driving a take over adb, and cutting it
+
+What the 2026-11-15 take (a separate Android user on the OnePlus 15) taught:
+
+1. **Turn on Show taps first** (`settings --user <id> put system show_touches 1`), and off again
+   afterwards. Without it a viewer cannot tell what was pressed.
+2. **Open every app by a tap a viewer can see.** Never `am start`. The docked pad covers the home
+   screen's dock and the bottom of the screen, and the swipe up into the app drawer starts there.
+   So minimise the pad (`– min`) before tapping the dock or swiping up, and tap `▲ pad` to bring it
+   back. That shows the minimise feature too.
+3. **Locate controls with `uiautomator dump` only while the service is off.** A dump unbinds every
+   accessibility service for a moment, so after the service is on, use fixed coordinates or a
+   screenshot. The drawer's recent-apps row reorders itself, so find the icon each time.
+4. **Do not use Settings search on OxygenOS.** It shows an AI Search consent prompt every time. After
+   **I understand**, Settings stays on the service's page, so opening Settings again from the drawer
+   lands there for the switch-off.
+5. **Record in 180 s segments** with a device-side loop (`for i in 1 2 3; do screenrecord
+   --time-limit 180 /data/local/tmp/take_$i.mp4; done`), then join them with ffmpeg's concat demuxer.
+6. **`screenrecord` writes a frame only when the screen changes.** So a cut that seeks to a still
+   stretch lands on the next change, and every hold collapses. Seek to the last frame at or before
+   the span, make it constant-rate (`tpad`, `fps`), then `trim` the span. Its packet times
+   (`ffprobe -show_entries packet=pts_time`) are also an exact list of when something happened.
+7. **Cut every still stretch to about 1-3 s,** and hold longer only where there is text to read.
+   Captions in a band above the screen say what each step does without covering it.
