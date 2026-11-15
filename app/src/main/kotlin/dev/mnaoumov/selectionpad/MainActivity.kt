@@ -202,11 +202,27 @@ class MainActivity : Activity() {
   /** The disclosure on request, from the normal screen. Reading it records nothing and changes nothing. */
   private fun showDisclosure() {
     Diag.log("launcher: showing the disclosure on request")
-    AlertDialog.Builder(this)
+    // The docked pad draws over the dialog's last lines and its OK button (the phone, 2026-11-15),
+    // so it steps aside while the dialog is up, as it does for the add-tile dialog and the share
+    // sheet. Every way the dialog goes (OK, Back, a tap outside, this screen ending) dismisses it.
+    AscAccessibilityService.stepAside("the disclosure dialog")
+    disclosureDialog = AlertDialog.Builder(this)
       .setTitle(R.string.disclosure_link)
       .setMessage(R.string.disclosure_body)
       .setPositiveButton(android.R.string.ok, null)
+      .setOnDismissListener {
+        disclosureDialog = null
+        AscAccessibilityService.comeBack()
+      }
       .show()
+  }
+
+  /** The disclosure dialog while it is up, so this screen ending can dismiss it and bring the pad back. */
+  private var disclosureDialog: AlertDialog? = null
+
+  override fun onDestroy() {
+    disclosureDialog?.dismiss()
+    super.onDestroy()
   }
 
   /**
