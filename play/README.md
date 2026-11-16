@@ -21,6 +21,40 @@ See `AGENTS.md` for the measurement.
 | `graphics/icon.svg` | the 512 × 512 store icon; same geometry as the launcher icon |
 | `graphics/feature-graphic.svg` | the 1024 × 500 feature graphic |
 | `graphics/render.ps1` | renders both SVGs to the PNGs the Console takes, with a headless browser |
+| `screenshots/page.html` | the page the Chrome screenshot is taken on, served to the emulator over `adb reverse` |
+| `screenshots/capture.ps1` | takes the two listing screens on one emulator profile, into `screenshots/<profile>-<n>-<screen>.png` |
+| `screenshots/serve.ps1` | the tiny HTTP server `capture.ps1` starts for `page.html` |
+| `screenshots/tablet7-*.png` | the 7-inch tablet screenshots: `-1-chrome` (the pad over Chrome) and `-2-launcher`. Not taken yet: they need an idle machine (below) |
+| `screenshots/tablet10-*.png` | the 10-inch tablet screenshots, the same two screens. Not taken yet either |
+
+## Tablet screenshots
+
+The Console wants 7- and 10-inch tablet screenshots before the listing can publish. Play takes a
+tablet screenshot only at 16:9 or 9:16, a 7-inch one with each side 320 to 3840 px and a 10-inch one
+with each side 1080 to 7680 px. `scripts\rig.ps1` has a profile for each, cloned from the rig's AVD
+the way `handset` was (`rig.ps1 avd -RigProfile tablet7` prints the recipe):
+
+| profile | AVD | serial | screen | smallest width |
+| --- | --- | --- | --- | --- |
+| `tablet7` | `asc_tablet7` | `emulator-5574` | 1080 × 1920 at 280 dpi | 617 dp |
+| `tablet10` | `asc_tablet10` | `emulator-5576` | 1440 × 2560 at 320 dpi | 720 dp |
+
+Both AVDs run 2 vCPUs (`hw.cpu.ncore=2`): a bulk session's emulator is held to 2 host cores, and 4
+vCPUs on them never got past `offline`. **The first boot needs an idle machine.** Measured
+2026-11-16 with `tablet7` under a bulk session's budget (2 host cores at Idle priority, other bulk
+work beside it): adb saw `device` after 17 minutes, `sys.boot_completed` after 19, and then
+`system_server` sat in "isn't responding" for 40 more minutes at a guest load average of 25, so
+Chrome's first run never finished. For each profile, on a machine with nothing else running:
+
+```powershell
+.\scripts\rig.ps1 up -RigProfile tablet7
+.\scripts\rig.ps1 install -RigProfile tablet7
+# Chrome's first run, once per AVD, with the service off: open any page and click through.
+.\play\screenshots\capture.ps1 -RigProfile tablet7
+.\scripts\rig.ps1 down -RigProfile tablet7
+```
+
+Uploading them to the Console's store listing is a separate step.
 
 ## The upload key
 
@@ -80,7 +114,8 @@ nothing else (above all no INTERNET):
 
 1. Create the app in the Play Console (name *Selection Pad*, app, free).
 2. Fill **App content** from `console-answers.md`, the privacy policy URL included.
-3. Fill the **store listing** from `listing/` and `graphics/`, plus phone screenshots.
+3. Fill the **store listing** from `listing/` and `graphics/`, plus phone screenshots and the
+   7- and 10-inch tablet ones from `screenshots/`.
 4. Upload the bundle to **internal testing** and install it on a phone from Play.
 5. Record the review video on that install (`review-video.md`), upload it to YouTube as unlisted,
    and add the link to the Accessibility declaration. If the Console will not roll out even the

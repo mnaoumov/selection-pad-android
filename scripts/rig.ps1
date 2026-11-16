@@ -62,9 +62,9 @@ param(
     # Negative means "the default"; see $DefaultIdleMinutes.
     [int] $IdleMinutes = -1,
 
-    # Which emulator: `rig` (the default, 320 dpi) or `handset` (the OnePlus 15's 560 dpi). See
-    # $RigProfiles.
-    [ValidateSet('rig', 'handset')]
+    # Which emulator: `rig` (the default, 320 dpi), `handset` (the OnePlus 15's 560 dpi), or one of
+    # the two tablet shapes the Play listing's screenshots are taken on. See $RigProfiles.
+    [ValidateSet('rig', 'handset', 'tablet7', 'tablet10')]
     [string] $RigProfile = 'rig'
 )
 
@@ -92,6 +92,12 @@ trap {
 $RigProfiles = @{
     rig     = @{ Avd = 'asc_test'; Port = 5570; Width = 720; Height = 1520; Density = 320; RamMb = 2560 }
     handset = @{ Avd = 'asc_handset'; Port = 5572; Width = 1272; Height = 2772; Density = 560; RamMb = 4096 }
+    # The two tablet shapes exist only for the Play listing's 7- and 10-inch screenshots. Play takes a
+    # tablet screenshot only at 16:9 or 9:16, and a 10-inch one only with each side at least 1080 px,
+    # so both are 9:16. The density puts each in its class by smallest width: 1080 px at 280 dpi is
+    # sw617 dp (a 7-inch tablet is sw600), and 1440 px at 320 dpi is sw720 dp (a 10-inch one).
+    tablet7  = @{ Avd = 'asc_tablet7'; Port = 5574; Width = 1080; Height = 1920; Density = 280; RamMb = 4096 }
+    tablet10 = @{ Avd = 'asc_tablet10'; Port = 5576; Width = 1440; Height = 2560; Density = 320; RamMb = 4096 }
 }
 $Shape = $RigProfiles[$RigProfile]
 $RigConsolePort = $Shape.Port
