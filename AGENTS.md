@@ -4335,6 +4335,19 @@ logged `aside: done with the disclosure dialog` and `lock: showing the pad`. One
 the service connects while the normal screen is in front, the screen does not add the docked pad's clearance
 until it resumes again, so its last buttons stay under the pad and cannot be scrolled out.
 
+**The screen now follows the pad while it is in front (2026-11-16).** The clearance was applied only in
+`onResume`, so **Show the pad**, the tile, the notification, a service connect, `⇅` and `–` all left the
+screen padded for the pad as it was before (on the phone, `content 2602 px in a 2575 px viewport` with the pad
+docked). `MainActivity.applyContentEdges` now re-pads from the live `onToggled` hook too, and `Pad`'s relayout
+(edge flip, minimise) calls that hook. It logs `launcher: content padded <top> px at the top, <bottom> px at the
+bottom` when the padding changes. Measured on the OnePlus 15 with the debug build of `82a13d8`, the launcher
+in front throughout and no resume between steps: **Show the pad** from a hidden pad, then two swipes, left all
+five last buttons clear above the docked pad. `⇅` moved the clearance to the top, and the title sat below the
+pad. `pad.ps1 off` then `on`, which is the service-connect trigger, kept the buttons clear. `–` left them clear
+beside the `▲ pad` handle. The rig could not run it: under a guest load average of 20-47, SystemUI never
+dropped its keyguard, so the pad stayed hidden as locked. The phone's logcat had been flow-controlled
+(*The test rig*), so the evidence here is the screenshots, not the log line.
+
 **The pad steps aside while the disclosure dialog is up (2026-11-15).** On the OnePlus 15 the docked
 pad drew over the dialog's last line and its OK button, so the dialog could be closed only with Back.
 `MainActivity.showDisclosure` now calls `stepAside("the disclosure dialog")` before showing it and
