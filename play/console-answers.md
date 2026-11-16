@@ -15,7 +15,22 @@ imprecise, and that audience certainly includes people with motor impairments, b
 flag would be arguable, and the ordinary declaration lane exists for exactly this kind of app. The
 service config deliberately does not set it (`app/src/main/res/xml/accessibility_service_config.xml`).
 
-**Core functionality that uses the API** (the free-text field):
+**The form as the Console has it now** (filed by the owner, 2026-11-16, under Policy and programs →
+App content → Accessibility services):
+
+| field | answer |
+| --- | --- |
+| How the app uses the Accessibility API | App functionality |
+| Does it collect or share sensitive data through the API | No |
+| Video | https://www.youtube.com/watch?v=7wPNcEYCsR8 (unlisted) |
+| Acknowledgement | ticked |
+
+That form has no free-text field and no Submit button of its own. A saved declaration goes to
+review with the next change set sent from **Publishing overview**. The two texts below were written
+for an older version of the form, which had a free-text field. They stay as the answer to a
+reviewer's follow-up question.
+
+**Core functionality that uses the API:**
 
 > Selection Pad moves the text selection in other apps, where no keyboard can reach — for example
 > on a web page in a browser, where Android offers no cursor keys and the only way to adjust a
@@ -51,7 +66,8 @@ consent) or the service is already on. After that it opens on its normal screen,
 requires the disclosure before the access is granted, not on every visit, so the consent step is
 the part the review covers.
 
-**Video link:** the unlisted YouTube upload of the review video.
+**Video link:** the unlisted YouTube upload of the review video,
+https://www.youtube.com/watch?v=7wPNcEYCsR8 (release 3, `versionCode` 3).
 
 ## App content → Data safety
 
