@@ -679,6 +679,19 @@ class MainActivity : Activity() {
     return Edges(PADDING, PADDING * 2 + (top * density).toInt(), PADDING, (bottom * density).toInt())
   }
 
+  /** Pads the screen clear of the pad as it is now. True when the padding changed. */
+  private fun applyContentEdges(): Boolean {
+    val edges = contentEdges()
+    if (root.paddingLeft == edges.left && root.paddingTop == edges.top &&
+      root.paddingRight == edges.right && root.paddingBottom == edges.bottom
+    ) {
+      return false
+    }
+    root.setPadding(edges.left, edges.top, edges.right, edges.bottom)
+    Diag.log("launcher: content padded ${edges.top} px at the top, ${edges.bottom} px at the bottom")
+    return true
+  }
+
   /** The share sheet took the pad aside; this screen coming back is the sheet going away. */
   private var sharing = false
 
@@ -689,7 +702,7 @@ class MainActivity : Activity() {
       AscAccessibilityService.comeBack()
     }
     // The pad may have moved edge since this screen was built.
-    contentEdges().let { root.setPadding(it.left, it.top, it.right, it.bottom) }
+    applyContentEdges()
     // Re-read on every return, so the row goes away once the user has granted the exemption.
     val exempt = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
     batteryRow.visibility = if (exempt) View.GONE else View.VISIBLE
@@ -714,6 +727,12 @@ class MainActivity : Activity() {
     }
     column.post { logFit() }
     AscAccessibilityService.onToggled = {
+      /*
+       * The pad can come, go, change edge or shrink while this screen is in front (Show the pad,
+       * the tile, the notification, the pad's own buttons), and the clearance follows it. Without
+       * this the last buttons stayed under a pad shown from here until the next resume.
+       */
+      if (applyContentEdges()) column.post { logFit() }
       showScreen()
       showOffRows()
       showNotRunningRow()

@@ -195,6 +195,8 @@ class Pad(
     hide()
     if (wasShowing) show()
     previousStatus?.let { showStatus(it) }
+    // A launcher screen in front keeps its content clear of the pad's edge and size.
+    AscAccessibilityService.onToggled?.invoke()
   }
 
   /** The last status shown, so a pad expanded from its handle says what happened meanwhile. */
