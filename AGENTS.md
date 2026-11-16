@@ -4135,6 +4135,17 @@ profile booted in ~40 s and ran three measurement sittings. Two things were diff
 - **4 GB is tight.** `top` showed 0.4 GB free and swap in use while idle. Nothing was killed after the
   first minute, but a Chrome that vanishes mid-press on this profile is the memory before it is the app.
 
+### The tablet profiles
+
+**`-RigProfile tablet7` and `-RigProfile tablet10` exist only for the Play listing's tablet
+screenshots**: `asc_tablet7` on `emulator-5574` (1080x1920 at 280 dpi, sw617 dp) and `asc_tablet10`
+on `emulator-5576` (1440x2560 at 320 dpi, sw720 dp), both 9:16 because Play takes no other tablet
+ratio. They were cloned from `asc_test` the way `handset` was, and run 2 vCPUs. `play/README.md` has
+the shapes, the capture script and the steps. **Their first boot needs an idle machine.** Under a
+bulk session's budget (2 host cores at Idle priority) a 4-vCPU `tablet7` stayed `offline` for 15
+minutes. With 2 vCPUs it reached `sys.boot_completed` after 19 minutes, and then `system_server`
+stayed in "isn't responding" for 40 more at a guest load average of 25 (2026-11-16).
+
 ### The debug target
 
 `app/src/debug/.../TargetActivity.kt` — three selectable blocks with **known offsets**, so an
