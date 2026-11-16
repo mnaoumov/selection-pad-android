@@ -62,8 +62,8 @@ android {
 
     // Play refuses a second upload with a versionCode it has seen, so this goes up by one for every
     // bundle that leaves the machine — including one that only ever reaches the internal track.
-    versionCode = 2
-    versionName = "0.2"
+    versionCode = 3
+    versionName = "0.3"
   }
 
   signingConfigs {
