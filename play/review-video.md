@@ -45,8 +45,14 @@ adb -s <device-serial> pull /sdcard/review.mp4
 
 What the 2026-11-15 take (a separate Android user on the OnePlus 15) taught:
 
-1. **Turn on Show taps first** (`settings --user <id> put system show_touches 1`), and off again
-   afterwards. Without it a viewer cannot tell what was pressed.
+1. **Draw every touch onto the cut; do not rely on Show taps.** A viewer has to see what was pressed.
+   On the OnePlus 15, Show taps (`settings --user <id> put system show_touches 1`) drew nothing in the
+   recording for touches injected with `adb shell input`, so the 2026-11-15 cut was rejected as "taps
+   are not visible". Keep the take's adb commands, then read each touch's time off a 10 fps contact
+   sheet of the recording: it is the first frame that reacts, less 0.1 s. Overlay a marker there,
+   an orange ring about 140 px across, for 0.5 s, or for the whole hold or swipe, moving along a swipe
+   (ffmpeg `overlay` with `enable='between(t,…)'` and a time expression for `x`/`y`). A key event
+   (`KEYCODE_HOME`, `KEYCODE_BACK`) gets the same marker on its navigation-bar button.
 2. **Open every app by a tap a viewer can see.** Never `am start`. The docked pad covers the home
    screen's dock and the bottom of the screen, and the swipe up into the app drawer starts there.
    So minimise the pad (`– min`) before tapping the dock or swiping up, and tap `▲ pad` to bring it
@@ -61,7 +67,11 @@ What the 2026-11-15 take (a separate Android user on the OnePlus 15) taught:
    --time-limit 180 /data/local/tmp/take_$i.mp4; done`), then join them with ffmpeg's concat demuxer.
 6. **`screenrecord` writes a frame only when the screen changes.** So a cut that seeks to a still
    stretch lands on the next change, and every hold collapses. Seek to the last frame at or before
-   the span, make it constant-rate (`tpad`, `fps`), then `trim` the span. Its packet times
-   (`ffprobe -show_entries packet=pts_time`) are also an exact list of when something happened.
+   the span, make it constant-rate (`tpad`, `fps`), then `trim` the span. Simpler: decode the joined
+   take once to a 30 fps constant-rate master (`-vf fps=30 -g 30`) and cut every span from that. Its
+   packet times (`ffprobe -show_entries packet=pts_time`) are also an exact list of when something
+   happened.
+   Check every span against a contact sheet before captioning it. In the rejected cut, the Copy step's
+   span had been placed after the Copy, so its caption ran over the next screen.
 7. **Cut every still stretch to about 1-3 s,** and hold longer only where there is text to read.
    Captions in a band above the screen say what each step does without covering it.
