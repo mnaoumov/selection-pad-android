@@ -4321,6 +4321,20 @@ screen` with the off row. With the service enabled, the normal screen showed aga
 under the machine's load before the tap, and the emulator then died. To see the consent step again,
 clear the app's storage with the service off.
 
+**The phone confirms all three (2026-11-15, OnePlus 15, a debug build carrying `5bc4e99`, so the consent
+step and the dialog's step-aside).** With the service off and `pm clear`, the launcher logged `showing the consent step` and
+`disclosure fit (consent step): ... content 1862 px in a 2575 px viewport (scrolls=false)`, and the
+screenshot showed the whole text and its three buttons on one screen. That is in portrait. In landscape the
+same step logged `content 1614 px in a 1075 px viewport (scrolls=true)`: no text of that length fits a
+1272 px tall window, so the one-screen fit is a portrait property. `I understand` logged `launcher: consent
+recorded` and opened `AccessibilitySettingsActivity`. Back logged `showing the normal screen`, titled
+**Selection Pad**, with the "Selection Pad is off" row and its `Open Accessibility settings` button. With
+the service on, **Accessibility disclosure** logged `launcher: showing the disclosure on request` and
+`aside: hiding the pad for the disclosure dialog`, and the dialog showed the full text with OK clear. OK
+logged `aside: done with the disclosure dialog` and `lock: showing the pad`. One defect showed on the way: when
+the service connects while the normal screen is in front, the screen does not add the docked pad's clearance
+until it resumes again, so its last buttons stay under the pad and cannot be scrolled out.
+
 **The pad steps aside while the disclosure dialog is up (2026-11-15).** On the OnePlus 15 the docked
 pad drew over the dialog's last line and its OK button, so the dialog could be closed only with Back.
 `MainActivity.showDisclosure` now calls `stepAside("the disclosure dialog")` before showing it and
