@@ -73,7 +73,11 @@ What `capture.ps1` takes care of, each found on its first end-to-end run (2026-1
   has run, is answered with Back ("Don't add tile").
 - **The status bar is SystemUI's demo mode**: 12:00, a full battery, no notification icons.
 
-Uploading them to the Console's store listing is a separate step.
+They were uploaded to the default store listing on 2026-11-18, Chrome shot first in each slot. In the
+listing editor, **Add assets** opens an asset side panel. Its **Upload** puts every file into the slot
+whose **Add assets** was pressed last. So upload into the asset library, then select the files in the
+panel in the order they should appear, and press **Add**. The slot has no reorder control, and dragging
+a thumbnail does nothing, so a wrong order is fixed by removing the shots and adding them again.
 
 ## The upload key
 
@@ -142,4 +146,9 @@ nothing else (above all no INTERNET):
    with `adb install`, whose switch can be reached on the OnePlus 15.
 6. Promote to closed testing, then production. A new personal developer account must first run a
    closed test with testers for a period before production access is granted; the Console states
-   the current numbers.
+   the current numbers (2026-11-18: at least 12 opted-in testers for at least 14 days).
+   Internal testing is never reviewed, so **Send for review** in Publishing overview stays disabled
+   until the closed track has testers and a release. The closed track (Alpha) was set up on
+   2026-11-18. Its testers are the `Owner` email list, its feedback channel is this repo's issue
+   forms, and its release is `3 (0.3)`. That made the change set (closed track, store listing, App
+   content) ready to submit.
