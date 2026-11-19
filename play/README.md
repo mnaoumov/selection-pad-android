@@ -24,8 +24,8 @@ See `AGENTS.md` for the measurement.
 | `screenshots/page.html` | the page the Chrome screenshot is taken on, served to the emulator over `adb reverse` |
 | `screenshots/capture.ps1` | takes the two listing screens on one emulator profile, into `screenshots/<profile>-<n>-<screen>.png` |
 | `screenshots/serve.ps1` | the tiny HTTP server `capture.ps1` starts for `page.html` |
-| `screenshots/tablet7-*.png` | the 7-inch tablet screenshots: `-1-chrome` (the pad over Chrome) and `-2-launcher`. Not taken yet: they need an idle machine (below) |
-| `screenshots/tablet10-*.png` | the 10-inch tablet screenshots, the same two screens. Not taken yet either |
+| `screenshots/tablet7-*.png` | the 7-inch tablet screenshots, 1080 × 1920: `-1-chrome` (the pad over Chrome, "under your finger" selected) and `-2-launcher` (the app's own screen) |
+| `screenshots/tablet10-*.png` | the 10-inch tablet screenshots, 1440 × 2560, the same two screens |
 
 ## Tablet screenshots
 
@@ -44,15 +44,34 @@ vCPUs on them never got past `offline`. **The first boot needs an idle machine.*
 2026-11-16 with `tablet7` under a bulk session's budget (2 host cores at Idle priority, other bulk
 work beside it): adb saw `device` after 17 minutes, `sys.boot_completed` after 19, and then
 `system_server` sat in "isn't responding" for 40 more minutes at a guest load average of 25, so
-Chrome's first run never finished. For each profile, on a machine with nothing else running:
+Chrome's first run never finished. From an interactive session, outside the bulk budget, both
+profiles boot in about a minute (2026-11-18: `tablet7` up in 0.7 min, `tablet10` up and installed in
+1.6 min, with five bulk runs on the rest of the machine). For each profile:
 
 ```powershell
 .\scripts\rig.ps1 up -RigProfile tablet7
 .\scripts\rig.ps1 install -RigProfile tablet7
-# Chrome's first run, once per AVD, with the service off: open any page and click through.
+# Chrome's first run, once per AVD, with the service off: open any page, answer "Use without an
+# account" (or "Stay signed out") and "No thanks" to Chrome's notifications.
 .\play\screenshots\capture.ps1 -RigProfile tablet7
 .\scripts\rig.ps1 down -RigProfile tablet7
 ```
+
+What `capture.ps1` takes care of, each found on its first end-to-end run (2026-11-18):
+
+- **The word to long-press is measured by the page itself**, over Chrome's DevTools socket
+  (`adb forward ... localabstract:chrome_devtools_remote`): the rectangle of "under" in the second
+  paragraph, in CSS px, times `devicePixelRatio`, below the bottom of Chrome's toolbar
+  (`control_container` in a `uiautomator dump`). Chrome often leaves its web content out of a
+  `uiautomator dump`: on `tablet10` six dumps over 24 s held only the toolbar.
+- **One `⇥/word` press at a time.** A press takes about 2 s, and a touch on the pad while it runs
+  stops it, so the script waits for each press's `WORD_RIGHT ->` log line before the next.
+- **One tab.** Every run opens a new tab, and a tablet's tab strip is in the shot, so it selects the
+  first tab with Ctrl+1 and closes it with Ctrl+W until the toolbar says one tab is left; the page's
+  tab is the newest, the last in the strip.
+- **SystemUI's add-tile dialog**, which the app offers once on its first launch after the service
+  has run, is answered with Back ("Don't add tile").
+- **The status bar is SystemUI's demo mode**: 12:00, a full battery, no notification icons.
 
 Uploading them to the Console's store listing is a separate step.
 
